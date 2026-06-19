@@ -1,0 +1,193 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* dark mode driven by a `.dark` class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── macking design system ───────────────────────────────────────────────────
+   Calm, neutral CAD aesthetic adapted from CADAM / Claude desktop. Semantic
+   colours are CSS variables that flip between light and dark; Tailwind utilities
+   below map to them with @theme inline, so components never need dark: variants. */
+
+:root {
+  /* surfaces — warm cream (Claude-style calm light mode) */
+  --bg: #f2eee2; /* app background, warm cream */
+  --panel: #eae5d7; /* sidebar / panels, beige */
+  --panel-2: #faf8f1; /* raised controls, inputs — near-white cream */
+  --elevated: #faf8f1;
+  --line: rgba(72, 60, 34, 0.13); /* warm hairline borders */
+  --line-strong: rgba(72, 60, 34, 0.2);
+  /* text — warm neutrals */
+  --fg: #292720; /* primary text */
+  --muted: #6a665a; /* secondary text */
+  --faint: #97917c; /* tertiary / labels */
+  /* accent — purple */
+  --accent: #7c3aed; /* violet-600, strong on cream */
+  --accent-fg: #ffffff;
+  --good: #2f8f5b;
+  --warn: #b5740a;
+  --bad: #c4452f;
+  /* canvas (engineering drawing) */
+  --canvas-bg: #f6f3ea;
+  --canvas-grid: #e7e1d1;
+  --canvas-axis: #d5cdba;
+  --c-ground: #8f897a;
+  --c-link2: #7c3aed; /* input crank — accent purple */
+  --c-link3: #6f7787; /* coupler — warm-leaning slate */
+  --c-link4: #c47e12; /* output rocker — amber */
+  --c-joint: #292720;
+  --c-coupler-pt: #cf3f93; /* coupler point — magenta (distinct from crank) */
+  --c-curve: #cf3f93;
+  --c-plot-grid: #e8e2d3;
+
+  --radius: 0.5rem;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #191a1a;
+  --panel: #212121;
+  --panel-2: #2d2d2d;
+  --elevated: #171818;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --fg: #e5e5e5;
+  --muted: #949494;
+  --faint: #676767;
+  --accent: #a78bfa; /* violet-400, bright on dark */
+  --accent-fg: #14101f;
+  --good: #36d399;
+  --warn: #f5a524;
+  --bad: #f04444;
+  --canvas-bg: #161717;
+  --canvas-grid: #232525;
+  --canvas-axis: #313434;
+  --c-ground: #5a6168;
+  --c-link2: #a78bfa; /* crank — accent purple */
+  --c-link3: #94a3b8; /* coupler — slate */
+  --c-link4: #f5a524; /* rocker — amber */
+  --c-joint: #eef3f8;
+  --c-coupler-pt: #f06fc0; /* magenta */
+  --c-curve: #f06fc0;
+  --c-plot-grid: #202222;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-elevated: var(--elevated);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ── liquid-glass surfaces ───────────────────────────────────────────────────
+   Translucent, blurred panels with a soft top highlight. Built on the theme
+   vars so they adapt to dark and cream-light automatically. Use on floating /
+   overlay elements (modals, menus, cards over a backdrop). */
+.glass {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--line-strong);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.glass-2 {
+  background: color-mix(in srgb, var(--panel-2) 70%, transparent);
+  backdrop-filter: blur(10px) saturate(135%);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.glass-2:hover {
+  background: color-mix(in srgb, var(--panel-2) 82%, transparent);
+}
+
+/* onboarding step transition */
+@keyframes kc-fade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.kc-step {
+  animation: kc-fade 0.28s ease-out;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+
+/* range slider — neutral track, accent thumb */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: var(--line-strong);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
