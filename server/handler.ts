@@ -2,7 +2,7 @@
 // the Vercel serverless functions (api/*.ts). Holds key resolution, provider routing, and the
 // engine-grounded tool loop. Reads keys from process.env (local: .env; Vercel: project env).
 
-import { MODELS, providerOf, type Provider } from "../shared/models.ts";
+import { MODELS, providerOf, isQuotaError, type Provider } from "../shared/models.ts";
 import { runAnthropic, runGemini, runOpenAI, type ChatTurn } from "./providers.ts";
 import { buildSystemPrompt, type WorkingState } from "./tools.ts";
 import { DEFAULT_FOURBAR, DEFAULT_SLIDER } from "../src/state.ts";
@@ -66,6 +66,10 @@ export async function runCopilot(body: CopilotBody): Promise<HandlerResult> {
     const result = await run(model, key, history, state, system);
     return { status: 200, body: result };
   } catch (err) {
-    return { status: 502, body: { error: (err as Error).message } };
+    const msg = (err as Error).message;
+    // Surface quota/rate-limit errors with a distinct status so the client can
+    // automatically fall back to a lower-tier model without user intervention.
+    if (isQuotaError(msg)) return { status: 429, body: { error: msg, quota: true } };
+    return { status: 502, body: { error: msg } };
   }
 }

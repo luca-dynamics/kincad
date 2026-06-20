@@ -6,6 +6,16 @@ import type { ModelInfo, Provider } from "../../shared/models";
 import { getKey } from "./keys";
 import type { AgentContext, AgentModel, AgentReply, ChatMessage } from "./types";
 
+/** Thrown when the provider returns a quota / rate-limit rejection (HTTP 429). */
+export class QuotaError extends Error {
+  readonly modelId: string;
+  constructor(message: string, modelId: string) {
+    super(message);
+    this.name = "QuotaError";
+    this.modelId = modelId;
+  }
+}
+
 export class ProxyAgent implements AgentModel {
   readonly id: string;
   readonly label: string;
@@ -37,12 +47,17 @@ export class ProxyAgent implements AgentModel {
     });
     if (!res.ok) {
       let detail = "";
+      let quota = false;
       try {
-        detail = (await res.json()).error ?? "";
+        const body = await res.json();
+        detail = body.error ?? "";
+        quota = !!body.quota;
       } catch {
         detail = await res.text().catch(() => "");
       }
-      throw new Error(detail || `proxy error ${res.status}`);
+      const msg = detail || `proxy error ${res.status}`;
+      if (res.status === 429 || quota) throw new QuotaError(msg, this.id);
+      throw new Error(msg);
     }
     const data = (await res.json()) as AgentReply;
     return { text: data.text, actions: data.actions ?? [] };

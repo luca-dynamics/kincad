@@ -22,6 +22,8 @@ import { buildCad } from "./cad/build";
 import { normalizeCadModel } from "./cad/params";
 import { exportSTL } from "./cad/stl";
 import { getModel, OFFLINE, probeModels } from "./ai/models";
+import { QuotaError } from "./ai/proxy";
+import { nextFallback } from "../shared/models";
 import { applyActions } from "./ai/apply";
 import type { AgentContext, Attachment, ChatMessage } from "./ai/types";
 import {
@@ -60,7 +62,10 @@ export default function App() {
       // (most quota for the FYP demo); the rest are fallbacks if Google isn't keyed.
       const preferred = [
         "gemini-3.5-flash",
+        "gemini-2.5-flash",
         "gemini-3-pro",
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
         "claude-opus-4-8",
         "claude-sonnet-4-6",
         "gpt-5.5",
@@ -159,11 +164,42 @@ export default function App() {
       }
 
       try {
-        const reply = await model.respond([...messages, userMsg], ctx);
+        // Auto-fallback loop: if the chosen model hits a quota/rate-limit error,
+        // step down the chain automatically until something responds or we reach offline.
+        let activeModel = model;
+        let reply;
+        while (true) {
+          try {
+            reply = await activeModel.respond([...messages, userMsg], ctx);
+            break;
+          } catch (err) {
+            if (err instanceof QuotaError) {
+              const fallbackId = nextFallback(activeModel.id);
+              const fallbackModel = fallbackId ? getModel(fallbackId) : null;
+              if (fallbackModel && fallbackModel.available) {
+                prefix =
+                  `_⚡ ${activeModel.label} hit its quota limit — switched to **${fallbackModel.label}** automatically._\n\n` +
+                  prefix;
+                setModelId(fallbackModel.id);
+                activeModel = fallbackModel;
+                continue;
+              }
+              // No more fallbacks with keys — try offline as last resort
+              prefix =
+                `_⚡ ${activeModel.label} hit its quota limit and no fallback model is available — answering in offline mode._\n\n` +
+                prefix;
+              setModelId(OFFLINE.id);
+              activeModel = OFFLINE;
+              continue;
+            }
+            throw err; // non-quota errors propagate normally
+          }
+        }
+
         if (reply.actions?.length) {
           const cadAction = reply.actions.find((a) => a.type === "set_cad");
           setState((s) => {
-            const next = applyActions({ kind: s.kind, fourbar: s.fourbar, slider: s.slider }, reply.actions!);
+            const next = applyActions({ kind: s.kind, fourbar: s.fourbar, slider: s.slider }, reply!.actions!);
             return {
               ...s,
               ...next,
@@ -172,10 +208,9 @@ export default function App() {
             };
           });
           if (cadAction) setViewMode("cad");
-          // A mechanism / model is now in play → reveal the workspace and make room for it.
           setHasMechanism(true);
           setSidebarOpen(false);
-          setMobileTab("view"); // on mobile, jump to the workspace tab after agent acts
+          setMobileTab("view");
         }
         setMessages((m) => [...m, { role: "assistant", content: prefix + reply.text, actions: reply.actions }]);
       } catch (err) {
