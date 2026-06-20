@@ -76,7 +76,7 @@ export default function Viewport(p: Props) {
       </div>
 
       {p.plotsOpen && !isCad && (
-        <div className="flex-shrink-0 border-t border-line">
+        <div className="hidden flex-shrink-0 border-t border-line sm:block">
           <Plots state={p.state} />
         </div>
       )}
