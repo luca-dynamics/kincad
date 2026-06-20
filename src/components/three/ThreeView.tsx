@@ -141,7 +141,7 @@ export default function ThreeView({
   const dark = theme === "dark";
 
   return (
-    <Canvas shadows camera={{ position: [center.x, center.y - 6, 7], fov: 45 }} dpr={[1, 2]}>
+    <Canvas shadows camera={{ position: [center.x, center.y - 6, 7], fov: 45 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
       <color attach="background" args={[dark ? "#161717" : "#f7f7f6"]} />
       <ambientLight intensity={dark ? 0.5 : 0.8} />
       <directionalLight position={[4, 6, 8]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />

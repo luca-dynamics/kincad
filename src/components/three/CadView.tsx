@@ -33,7 +33,7 @@ export default function CadView({ model }: { model: CadModel }) {
   const camPos: [number, number, number] = [center.x + dist, center.y + dist * 0.7, center.z + dist];
 
   return (
-    <Canvas shadows camera={{ position: camPos, fov: 45 }} dpr={[1, 2]}>
+    <Canvas shadows camera={{ position: camPos, fov: 45 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
       <color attach="background" args={[dark ? "#161717" : "#f6f3ea"]} />
       <ambientLight intensity={dark ? 0.55 : 0.85} />
       <directionalLight position={[dist, dist * 1.4, dist]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
