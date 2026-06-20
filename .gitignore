@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# generated serverless bundle (built by scripts/bundle-server.mjs)
+api/_handler.js
+
 # secrets — never commit API keys
 .env
 .env.*
