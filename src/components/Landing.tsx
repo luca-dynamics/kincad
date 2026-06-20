@@ -55,11 +55,9 @@ export function Landing({
               className="absolute h-28 w-28 rounded-full blur-3xl"
               style={{ background: "var(--accent)", opacity: 0.12 }}
             />
-            <LogoMark
-              size={56}
-              className="relative"
-              style={{ filter: "drop-shadow(0 0 10px var(--accent-glow))" } as React.CSSProperties}
-            />
+            <div style={{ filter: "drop-shadow(0 0 10px var(--accent-glow))" }}>
+              <LogoMark size={56} className="relative block" />
+            </div>
           </div>
         </div>
 
