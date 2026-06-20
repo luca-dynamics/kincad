@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Cog } from "lucide-react";
 import type { ChatMessage } from "../../ai/types";
+import { Markdown } from "./Markdown";
 
 export function Thread({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -38,11 +39,13 @@ function Bubble({ msg }: { msg: ChatMessage }) {
         )}
         {msg.content && (
           <div
-            className={`whitespace-pre-wrap rounded-xl px-3.5 py-2.5 text-[13px] leading-relaxed ${
-              isUser ? "bg-accent/12 text-fg" : "bg-panel-2 text-muted ring-1 ring-line"
+            className={`rounded-xl px-3.5 py-2.5 ${
+              isUser
+                ? "whitespace-pre-wrap text-[13px] leading-relaxed bg-accent/12 text-fg"
+                : "bg-panel-2 ring-1 ring-line"
             }`}
           >
-            {renderMarkdownish(msg.content)}
+            {isUser ? msg.content : <Markdown>{msg.content}</Markdown>}
           </div>
         )}
         {msg.actions && msg.actions.length > 0 && (
@@ -79,25 +82,4 @@ function actionLabel(a: import("../../ai/types").WorkspaceAction): string {
     case "set_cad":
       return `CAD · ${a.model.name}`;
   }
-}
-
-// Minimal **bold** + bullet rendering without a markdown dependency.
-export function renderMarkdownish(text: string) {
-  return text.split("\n").map((line, li) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
-      p.startsWith("**") && p.endsWith("**") ? (
-        <strong key={i} className="font-semibold text-fg">
-          {p.slice(2, -2)}
-        </strong>
-      ) : (
-        <span key={i}>{p}</span>
-      ),
-    );
-    return (
-      <div key={li} className={line.startsWith("•") || line.startsWith("⚠") ? "pl-1" : ""}>
-        {parts}
-        {li < text.split("\n").length - 1 ? "" : null}
-      </div>
-    );
-  });
 }
