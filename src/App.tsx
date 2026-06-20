@@ -354,14 +354,12 @@ export default function App() {
           )}
         </div>
 
-        {/* Bottom tab nav — only shown once a conversation is started */}
-        {(started || hasMechanism) && (
-          <MobileNav
-            tab={mobileTab}
-            onTab={(t) => { setMobileTab(t); }}
-            onMenu={() => setSidebarOpen((o) => !o)}
-          />
-        )}
+        {/* Bottom tab nav — always visible so the Menu button is always reachable */}
+        <MobileNav
+          tab={mobileTab}
+          onTab={(t) => { setMobileTab(t); }}
+          onMenu={() => setSidebarOpen((o) => !o)}
+        />
       </div>
     );
   }
