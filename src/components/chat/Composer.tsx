@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { ArrowUp, Paperclip, X } from "lucide-react";
+import { ArrowUp, Paperclip, X, Mic } from "lucide-react";
 import { ModelSelect } from "./ModelSelect";
+import { useSpeechRecognition } from "../../hooks/useSpeech";
 import type { Attachment } from "../../ai/types";
 
 export function Composer({
@@ -23,10 +24,13 @@ export function Composer({
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const speech = useSpeechRecognition(setText);
+  const toggleMic = () => (speech.listening ? speech.stop() : speech.start(text));
 
   const send = () => {
     const t = text.trim();
     if ((!t && attachments.length === 0) || busy) return;
+    if (speech.listening) speech.stop();
     onSend(t, attachments.length ? attachments : undefined);
     setText("");
     setAttachments([]);
@@ -93,6 +97,19 @@ export function Composer({
           >
             <Paperclip className="h-4 w-4" />
           </button>
+          {speech.supported && (
+            <button
+              onClick={toggleMic}
+              title={speech.listening ? "Stop dictation" : "Dictate (voice to text)"}
+              className={`grid h-8 w-8 place-items-center rounded-md transition-colors ${
+                speech.listening
+                  ? "animate-pulse bg-accent/15 text-accent"
+                  : "text-muted hover:bg-line hover:text-fg"
+              }`}
+            >
+              <Mic className="h-4 w-4" />
+            </button>
+          )}
           <ModelSelect modelId={modelId} onChange={onModelChange} />
         </div>
         <button

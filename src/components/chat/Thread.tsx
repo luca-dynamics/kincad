@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
-import { Cog } from "lucide-react";
+import { Cog, Volume2, Square } from "lucide-react";
 import type { ChatMessage } from "../../ai/types";
 import { Markdown } from "./Markdown";
+import { useSpeechSynthesis } from "../../hooks/useSpeech";
 
 export function Thread({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const tts = useSpeechSynthesis();
   useEffect(() => {
     ref.current?.scrollTo({ top: 1e9, behavior: "smooth" });
   }, [messages, busy]);
@@ -12,7 +14,7 @@ export function Thread({ messages, busy }: { messages: ChatMessage[]; busy: bool
   return (
     <div ref={ref} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
       {messages.map((m, i) => (
-        <Bubble key={i} msg={m} />
+        <Bubble key={i} msg={m} id={String(i)} tts={tts} />
       ))}
       {busy && (
         <div className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
@@ -25,8 +27,17 @@ export function Thread({ messages, busy }: { messages: ChatMessage[]; busy: bool
   );
 }
 
-function Bubble({ msg }: { msg: ChatMessage }) {
+function Bubble({
+  msg,
+  id,
+  tts,
+}: {
+  msg: ChatMessage;
+  id: string;
+  tts: ReturnType<typeof useSpeechSynthesis>;
+}) {
   const isUser = msg.role === "user";
+  const speaking = tts.speakingId === id;
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={`max-w-[90%] ${isUser ? "" : "w-full"}`}>
@@ -47,6 +58,18 @@ function Bubble({ msg }: { msg: ChatMessage }) {
           >
             {isUser ? msg.content : <Markdown>{msg.content}</Markdown>}
           </div>
+        )}
+        {!isUser && msg.content && tts.supported && (
+          <button
+            onClick={() => (speaking ? tts.cancel() : tts.speak(msg.content, id))}
+            title={speaking ? "Stop" : "Read aloud"}
+            className={`mt-1 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors ${
+              speaking ? "text-accent" : "text-faint hover:text-fg"
+            }`}
+          >
+            {speaking ? <Square className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+            {speaking ? "Stop" : "Listen"}
+          </button>
         )}
         {msg.actions && msg.actions.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
