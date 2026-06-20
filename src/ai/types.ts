@@ -38,7 +38,8 @@ export type WorkspaceAction =
   | { type: "set_fourbar"; params: Partial<FourBarLinkage>; note?: string }
   | { type: "set_slidercrank"; params: Partial<SliderCrankLinkage>; note?: string }
   | { type: "run_analysis"; note?: string }
-  | { type: "set_cad"; model: CadModel; note?: string };
+  | { type: "set_cad"; model: CadModel; note?: string }
+  | { type: "generated_image"; dataUrl: string; prompt: string };
 
 /** Everything the agent can read about the current deterministic state. */
 export interface AgentContext {

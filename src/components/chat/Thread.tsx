@@ -71,10 +71,26 @@ function Bubble({
             {speaking ? "Stop" : "Listen"}
           </button>
         )}
+        {/* Inline generated images */}
+        {msg.actions?.filter((a) => a.type === "generated_image").map((a, i) =>
+          a.type === "generated_image" ? (
+            <div key={i} className="mt-2">
+              <img
+                src={a.dataUrl}
+                alt={a.prompt}
+                title={a.prompt}
+                className="max-w-full rounded-xl ring-1 ring-line"
+                style={{ maxHeight: 480 }}
+              />
+              <p className="mt-1 text-[10px] text-faint italic line-clamp-2">{a.prompt}</p>
+            </div>
+          ) : null,
+        )}
+        {/* Workspace action chips */}
         {msg.actions && msg.actions.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {msg.actions
-              .filter((a) => a.type !== "run_analysis")
+              .filter((a) => a.type !== "run_analysis" && a.type !== "generated_image")
               .map((a, i) => (
                 <span
                   key={i}
@@ -104,5 +120,7 @@ function actionLabel(a: import("../../ai/types").WorkspaceAction): string {
       return "ran analysis";
     case "set_cad":
       return `CAD · ${a.model.name}`;
+    case "generated_image":
+      return "image generated";
   }
 }

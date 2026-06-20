@@ -198,19 +198,23 @@ export default function App() {
 
         if (reply.actions?.length) {
           const cadAction = reply.actions.find((a) => a.type === "set_cad");
-          setState((s) => {
-            const next = applyActions({ kind: s.kind, fourbar: s.fourbar, slider: s.slider }, reply!.actions!);
-            return {
-              ...s,
-              ...next,
-              ...(cadAction && cadAction.type === "set_cad" ? { cadModel: normalizeCadModel(cadAction.model) } : {}),
-              playing: true,
-            };
-          });
-          if (cadAction) setViewMode("cad");
-          setHasMechanism(true);
-          setSidebarOpen(false);
-          setMobileTab("view");
+          // Workspace actions that actually change the mechanism / CAD state (not just image gen).
+          const workspaceActions = reply.actions.filter((a) => a.type !== "generated_image");
+          if (workspaceActions.length) {
+            setState((s) => {
+              const next = applyActions({ kind: s.kind, fourbar: s.fourbar, slider: s.slider }, workspaceActions);
+              return {
+                ...s,
+                ...next,
+                ...(cadAction && cadAction.type === "set_cad" ? { cadModel: normalizeCadModel(cadAction.model) } : {}),
+                playing: true,
+              };
+            });
+            if (cadAction) setViewMode("cad");
+            setHasMechanism(true);
+            setSidebarOpen(false);
+            setMobileTab("view");
+          }
         }
         setMessages((m) => [...m, { role: "assistant", content: prefix + reply.text, actions: reply.actions }]);
       } catch (err) {

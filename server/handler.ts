@@ -61,9 +61,11 @@ export async function runCopilot(body: CopilotBody): Promise<HandlerResult> {
   const history = (messages ?? []).map((m) => ({ role: m.role, content: m.content, images: m.images }));
   const system = buildSystemPrompt(context?.user);
   const run = provider === "anthropic" ? runAnthropic : provider === "openai" ? runOpenAI : runGemini;
+  // Always pass both image keys so generate_image works regardless of which text model is active.
+  const imageKeys = { googleKey: serverKey("google"), openAIKey: serverKey("openai") };
 
   try {
-    const result = await run(model, key, history, state, system);
+    const result = await run(model, key, history, state, system, imageKeys);
     return { status: 200, body: result };
   } catch (err) {
     const msg = (err as Error).message;

@@ -28,6 +28,8 @@ export function applyActions(base: Linkages, actions: WorkspaceAction[]): Linkag
         break; // analysis is always live; no-op on geometry
       case "set_cad":
         break; // CAD model lives outside the linkage state; applied in App
+      case "generated_image":
+        break; // Image lives in the message actions; rendered by Thread.tsx
     }
   }
   return { kind, fourbar, slider };

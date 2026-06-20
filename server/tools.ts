@@ -12,6 +12,7 @@ import {
   type SliderCrankLinkage,
 } from "../src/engine/index.ts";
 import { validateCadNode, type CadModel, type CadNode } from "../src/cad/types.ts";
+import { generateImage } from "./imageGen.ts";
 
 export type MechanismKind = "fourbar" | "slidercrank";
 
@@ -27,7 +28,8 @@ export type WorkspaceAction =
   | { type: "set_fourbar"; params: Partial<FourBarLinkage> }
   | { type: "set_slidercrank"; params: Partial<SliderCrankLinkage> }
   | { type: "run_analysis" }
-  | { type: "set_cad"; model: CadModel };
+  | { type: "set_cad"; model: CadModel }
+  | { type: "generated_image"; dataUrl: string; prompt: string };
 
 export interface ToolSpec {
   name: string;
@@ -100,6 +102,27 @@ export const TOOLS: ToolSpec[] = [
     },
   },
   {
+    name: "generate_image",
+    description:
+      "Generate an image from a text prompt and display it inline in the chat. Call this when the user " +
+      "asks to visualise a part, concept, diagram, or design — or explicitly requests an image. " +
+      "Write a detailed, descriptive prompt. The image is rendered by a specialist model (Gemini Nano Banana " +
+      "or DALL-E 3) and shown immediately to the user.",
+    parameters: {
+      type: "object",
+      properties: {
+        prompt: {
+          type: "string",
+          description:
+            "Detailed description of the image. Include shape, material, style, perspective, and lighting. " +
+            "Example: 'Technical engineering illustration of a four-bar linkage mechanism, " +
+            "silver aluminium links on a white background, clean line-art style.'",
+        },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
     name: "generate_cad",
     description:
       "Generate a freeform 3D CAD part (NOT a four-bar/slider-crank) — a bracket, plate, flange, gear blank, " +
@@ -128,8 +151,18 @@ export interface ToolOutcome {
   action?: WorkspaceAction; // change to surface to the UI
 }
 
+export interface ImageKeys {
+  googleKey?: string;
+  openAIKey?: string;
+}
+
 /** Execute one tool call against the working state (mutated in place). */
-export function executeTool(state: WorkingState, name: string, input: Record<string, unknown>): ToolOutcome {
+export async function executeTool(
+  state: WorkingState,
+  name: string,
+  input: Record<string, unknown>,
+  imageKeys?: ImageKeys,
+): Promise<ToolOutcome> {
   switch (name) {
     case "set_mechanism": {
       state.kind = input.kind as MechanismKind;
@@ -177,6 +210,19 @@ export function executeTool(state: WorkingState, name: string, input: Record<str
         };
       }
       return { result: { feasible: false, notes: res.notes } };
+    }
+    case "generate_image": {
+      const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
+      if (!prompt) return { result: { ok: false, error: "prompt is required" } };
+      try {
+        const dataUrl = await generateImage(prompt, imageKeys?.googleKey, imageKeys?.openAIKey);
+        return {
+          result: { ok: true },
+          action: { type: "generated_image", dataUrl, prompt },
+        };
+      } catch (e) {
+        return { result: { ok: false, error: (e as Error).message } };
+      }
     }
     case "generate_cad": {
       let parsed: unknown;
@@ -250,7 +296,10 @@ Same plate, now parametric:
   spec   = {"type":"difference","children":[{"type":"box","size":["width","thickness","depth"]},{"type":"cylinder","radius":"hole_r","height":20}]}
   params = [{"key":"width","label":"Width","value":40,"min":20,"max":80,"unit":"mm"},{"key":"thickness","label":"Thickness","value":10,"min":4,"max":24,"unit":"mm"},{"key":"depth","label":"Depth","value":40,"min":20,"max":80,"unit":"mm"},{"key":"hole_r","label":"Hole radius","value":3,"min":1.5,"max":8,"unit":"mm"}]
 Reuse one key for dimensions that must stay equal (e.g. a square plate uses "width" for two sides). If you omit params, the workspace still derives sliders automatically, but named params read better.
-After generating, briefly describe the part and its key dimensions, and note they can edit parameters on the right and export STL from the toolbar.`;
+After generating, briefly describe the part and its key dimensions, and note they can edit parameters on the right and export STL from the toolbar.
+
+## Generating images
+When the user asks for a visual, diagram, or image (e.g. "show me what a rack-and-pinion looks like", "draw a flange"), call the 'generate_image' tool with a detailed prompt. The image is rendered by Gemini Nano Banana or DALL-E 3 and displayed in the chat. Write a detailed, vivid prompt — include shape, materials, style, and perspective. After the image appears, briefly describe what was generated.`;
 
 /** Build the system prompt, optionally personalised with the user's name. */
 export function buildSystemPrompt(user?: { name?: string }): string {

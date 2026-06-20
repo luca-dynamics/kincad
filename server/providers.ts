@@ -1,7 +1,7 @@
 // Provider adapters. Each runs a tool-use loop with its native API but executes the SAME
 // engine-grounded tools (server/tools.ts), so model choice never changes the numbers.
 
-import { executeTool, TOOLS, type WorkingState, type WorkspaceAction } from "./tools.ts";
+import { executeTool, TOOLS, type ImageKeys, type WorkingState, type WorkspaceAction } from "./tools.ts";
 
 export interface TurnImage {
   mime: string;
@@ -32,6 +32,7 @@ export async function runAnthropic(
   history: ChatTurn[],
   state: WorkingState,
   system: string,
+  imageKeys?: ImageKeys,
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const messages: unknown[] = history.map((m) => {
@@ -60,7 +61,7 @@ export async function runAnthropic(
       const toolResults = [];
       for (const block of data.content) {
         if (block.type === "tool_use") {
-          const outcome = executeTool(state, block.name, block.input || {});
+          const outcome = await executeTool(state, block.name, block.input || {}, imageKeys);
           if (outcome.action) actions.push(outcome.action);
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(outcome.result) });
         }
@@ -84,6 +85,7 @@ export async function runOpenAI(
   history: ChatTurn[],
   state: WorkingState,
   system: string,
+  imageKeys?: ImageKeys,
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const messages: unknown[] = [
@@ -120,7 +122,7 @@ export async function runOpenAI(
         } catch {
           /* ignore malformed args */
         }
-        const outcome = executeTool(state, tc.function.name, args);
+        const outcome = await executeTool(state, tc.function.name, args, imageKeys);
         if (outcome.action) actions.push(outcome.action);
         messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(outcome.result) });
       }
@@ -156,6 +158,7 @@ export async function runGemini(
   history: ChatTurn[],
   state: WorkingState,
   system: string,
+  imageKeys?: ImageKeys,
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const contents: unknown[] = history.map((m) => {
@@ -196,7 +199,7 @@ export async function runGemini(
       const responseParts = [];
       for (const p of calls) {
         const fc = p.functionCall;
-        const outcome = executeTool(state, fc.name, fc.args || {});
+        const outcome = await executeTool(state, fc.name, fc.args || {}, imageKeys);
         if (outcome.action) actions.push(outcome.action);
         responseParts.push({ functionResponse: { name: fc.name, response: { result: outcome.result } } });
       }
