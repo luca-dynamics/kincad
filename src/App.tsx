@@ -55,8 +55,17 @@ export default function App() {
   useEffect(() => {
     setConversations(loadConversations());
     probeModels().then(() => {
-      const opus = getModel("claude-opus-4-8");
-      if (opus.available) setModelId(opus.id);
+      // Pick the first available model in preference order. Gemini 3.5 Flash is the default
+      // (most quota for the FYP demo); the rest are fallbacks if Google isn't keyed.
+      const preferred = [
+        "gemini-3.5-flash",
+        "gemini-3-pro",
+        "claude-opus-4-8",
+        "claude-sonnet-4-6",
+        "gpt-5.5",
+      ];
+      const pick = preferred.map(getModel).find((m) => m.available);
+      if (pick) setModelId(pick.id);
     });
   }, []);
 
