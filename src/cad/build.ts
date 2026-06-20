@@ -3,12 +3,20 @@
 
 import * as THREE from "three";
 import { ADDITION, Brush, Evaluator, INTERSECTION, SUBTRACTION } from "three-bvh-csg";
-import type { CadNode, Transform, Vec3 } from "./types";
+import type { CadNode, CadParam, Dim, Transform } from "./types";
 
 const evaluator = new Evaluator();
 evaluator.useGroups = false; // single material per result keeps things simple
 
 const DEG = Math.PI / 180;
+
+/** Resolve a dimension to a number: literals pass through, references look up the param map. */
+type DimMap = Map<string, number>;
+function resolve(d: Dim, m: DimMap): number {
+  if (typeof d === "number") return d;
+  const v = m.get(d);
+  return typeof v === "number" && isFinite(v) ? v : 0;
+}
 
 function applyTransform(obj: THREE.Object3D, t?: Transform) {
   if (!t) return;
@@ -21,18 +29,19 @@ function applyTransform(obj: THREE.Object3D, t?: Transform) {
   obj.updateMatrixWorld(true);
 }
 
-function leafGeometry(node: CadNode): THREE.BufferGeometry {
+function leafGeometry(node: CadNode, m: DimMap): THREE.BufferGeometry {
+  const r = (d: Dim) => resolve(d, m);
   switch (node.type) {
     case "box":
-      return new THREE.BoxGeometry(...(node.size as Vec3));
+      return new THREE.BoxGeometry(r(node.size[0]), r(node.size[1]), r(node.size[2]));
     case "cylinder":
-      return new THREE.CylinderGeometry(node.radius, node.radius, node.height, node.segments ?? 48);
+      return new THREE.CylinderGeometry(r(node.radius), r(node.radius), r(node.height), node.segments ?? 48);
     case "cone":
-      return new THREE.ConeGeometry(node.radius, node.height, node.segments ?? 48);
+      return new THREE.ConeGeometry(r(node.radius), r(node.height), node.segments ?? 48);
     case "sphere":
-      return new THREE.SphereGeometry(node.radius, 48, 32);
+      return new THREE.SphereGeometry(r(node.radius), 48, 32);
     case "torus":
-      return new THREE.TorusGeometry(node.radius, node.tube, 24, 64);
+      return new THREE.TorusGeometry(r(node.radius), r(node.tube), 24, 64);
     default:
       return new THREE.BoxGeometry(1, 1, 1);
   }
@@ -40,11 +49,11 @@ function leafGeometry(node: CadNode): THREE.BufferGeometry {
 
 const OP = { union: ADDITION, difference: SUBTRACTION, intersection: INTERSECTION } as const;
 
-function buildBrush(node: CadNode, fallbackColor: string): Brush {
+function buildBrush(node: CadNode, fallbackColor: string, m: DimMap): Brush {
   const color = node.color ?? fallbackColor;
 
   if (node.type === "union" || node.type === "difference" || node.type === "intersection") {
-    const children = node.children.map((c) => buildBrush(c, color));
+    const children = node.children.map((c) => buildBrush(c, color, m));
     let result = children[0];
     for (let i = 1; i < children.length; i++) {
       result = evaluator.evaluate(result, children[i], OP[node.type]);
@@ -54,7 +63,7 @@ function buildBrush(node: CadNode, fallbackColor: string): Brush {
     return result;
   }
 
-  const geo = leafGeometry(node);
+  const geo = leafGeometry(node, m);
   const brush = new Brush(geo, new THREE.MeshStandardMaterial({ color, metalness: 0.15, roughness: 0.6 }));
   applyTransform(brush, node.transform);
   brush.updateMatrixWorld(true);
@@ -67,9 +76,10 @@ export interface BuiltCad {
   center: THREE.Vector3;
 }
 
-/** Build the model. `color` is the default link colour from the active theme. */
-export function buildCad(node: CadNode, color = "#a78bfa"): BuiltCad {
-  const mesh = buildBrush(node, color) as unknown as THREE.Mesh;
+/** Build the model. `color` is the default link colour; `params` resolve dimension references. */
+export function buildCad(node: CadNode, color = "#a78bfa", params?: CadParam[]): BuiltCad {
+  const m: DimMap = new Map((params ?? []).map((p) => [p.key, p.value]));
+  const mesh = buildBrush(node, color, m) as unknown as THREE.Mesh;
   mesh.geometry.computeVertexNormals();
   const box = new THREE.Box3().setFromObject(mesh);
   const size = new THREE.Vector3();

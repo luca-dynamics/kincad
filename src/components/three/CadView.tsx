@@ -16,7 +16,7 @@ export default function CadView({ model }: { model: CadModel }) {
     const cs = getComputedStyle(document.documentElement);
     const accent = cs.getPropertyValue("--accent").trim() || "#a78bfa";
     try {
-      return buildCad(model.node, accent);
+      return buildCad(model.node, accent, model.params);
     } catch (e) {
       console.error("[cad] build failed", e);
       return null;

@@ -10,19 +10,26 @@ interface Props {
 
 export function MobileNav({ tab, onTab, onMenu }: Props) {
   return (
-    <nav className="flex h-14 flex-shrink-0 items-stretch border-t border-line bg-panel">
-      <NavBtn onClick={onMenu} label="Menu">
-        <Menu className="h-5 w-5" />
-      </NavBtn>
-      <NavBtn active={tab === "chat"} onClick={() => onTab("chat")} label="Chat">
-        <MessageSquare className="h-5 w-5" />
-      </NavBtn>
-      <NavBtn active={tab === "view"} onClick={() => onTab("view")} label="Workspace">
-        <Monitor className="h-5 w-5" />
-      </NavBtn>
-      <NavBtn active={tab === "params"} onClick={() => onTab("params")} label="Params">
-        <SlidersHorizontal className="h-5 w-5" />
-      </NavBtn>
+    // Padding-bottom carries the iOS home-indicator safe area; the inner row keeps full-height
+    // touch targets so the icons never get squashed by that padding.
+    <nav
+      className="z-30 flex-shrink-0 border-t border-line bg-panel"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex h-14 items-stretch">
+        <NavBtn onClick={onMenu} label="Menu">
+          <Menu className="h-5 w-5" />
+        </NavBtn>
+        <NavBtn active={tab === "chat"} onClick={() => onTab("chat")} label="Chat">
+          <MessageSquare className="h-5 w-5" />
+        </NavBtn>
+        <NavBtn active={tab === "view"} onClick={() => onTab("view")} label="Workspace">
+          <Monitor className="h-5 w-5" />
+        </NavBtn>
+        <NavBtn active={tab === "params"} onClick={() => onTab("params")} label="Params">
+          <SlidersHorizontal className="h-5 w-5" />
+        </NavBtn>
+      </div>
     </nav>
   );
 }

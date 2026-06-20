@@ -4,6 +4,25 @@
 
 export type Vec3 = [number, number, number];
 
+/**
+ * A dimension value: either a literal number, or a string that REFERENCES a named
+ * parameter (a `CadParam.key`). References let the part stay parametric — edit the
+ * parameter in the panel and every dimension that references it rebuilds (CADAM-style).
+ */
+export type Dim = number | string;
+export type DimVec3 = [Dim, Dim, Dim];
+
+/** A named, editable dimension surfaced as a slider in the parameter panel. */
+export interface CadParam {
+  key: string; // referenced by `Dim` strings in the node tree, e.g. "width"
+  label: string; // shown in the panel, e.g. "Width"
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string; // e.g. "mm"
+}
+
 export interface Transform {
   /** translation [x, y, z] */
   translate?: Vec3;
@@ -19,11 +38,11 @@ interface Base {
 }
 
 export type CadNode =
-  | (Base & { type: "box"; size: Vec3 })
-  | (Base & { type: "cylinder"; radius: number; height: number; segments?: number })
-  | (Base & { type: "cone"; radius: number; height: number; segments?: number })
-  | (Base & { type: "sphere"; radius: number })
-  | (Base & { type: "torus"; radius: number; tube: number })
+  | (Base & { type: "box"; size: DimVec3 })
+  | (Base & { type: "cylinder"; radius: Dim; height: Dim; segments?: number })
+  | (Base & { type: "cone"; radius: Dim; height: Dim; segments?: number })
+  | (Base & { type: "sphere"; radius: Dim })
+  | (Base & { type: "torus"; radius: Dim; tube: Dim })
   | (Base & { type: "union"; children: CadNode[] })
   | (Base & { type: "difference"; children: CadNode[] })
   | (Base & { type: "intersection"; children: CadNode[] });
@@ -31,6 +50,8 @@ export type CadNode =
 export interface CadModel {
   name: string;
   node: CadNode;
+  /** Editable named dimensions. May be absent on legacy/literal models — derive with normalizeCadModel(). */
+  params?: CadParam[];
 }
 
 export const CAD_NODE_TYPES = [

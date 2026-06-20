@@ -110,6 +110,13 @@ export const TOOLS: ToolSpec[] = [
       properties: {
         name: { type: "string", description: "short name for the part" },
         spec: { type: "string", description: "JSON string of the CadNode tree" },
+        params: {
+          type: "string",
+          description:
+            "OPTIONAL JSON string: array of named parameters the spec references by key, e.g. " +
+            '[{"key":"width","label":"Width","value":40,"min":20,"max":80,"unit":"mm"}]. ' +
+            "When provided, dimensions in the spec may be the param KEY (a string) instead of a number, so the user can edit them.",
+        },
       },
       required: ["name", "spec"],
     },
@@ -181,7 +188,28 @@ export function executeTool(state: WorkingState, name: string, input: Record<str
       if (!validateCadNode(parsed)) {
         return { result: { ok: false, error: "spec is not a valid CadNode tree (check node types/children)" } };
       }
-      const model: CadModel = { name: String(input.name ?? "Part"), node: parsed as CadNode };
+      let params: CadModel["params"];
+      if (input.params != null) {
+        try {
+          const p = typeof input.params === "string" ? JSON.parse(input.params) : input.params;
+          if (Array.isArray(p)) {
+            params = p
+              .filter((x) => x && typeof x.key === "string" && typeof x.value === "number")
+              .map((x) => ({
+                key: String(x.key),
+                label: String(x.label ?? x.key),
+                value: Number(x.value),
+                ...(typeof x.min === "number" ? { min: x.min } : {}),
+                ...(typeof x.max === "number" ? { max: x.max } : {}),
+                ...(typeof x.step === "number" ? { step: x.step } : {}),
+                ...(typeof x.unit === "string" ? { unit: x.unit } : {}),
+              }));
+          }
+        } catch {
+          /* ignore malformed params — the client auto-extracts sliders as a fallback */
+        }
+      }
+      const model: CadModel = { name: String(input.name ?? "Part"), node: parsed as CadNode, ...(params?.length ? { params } : {}) };
       return { result: { ok: true, name: model.name }, action: { type: "set_cad", model } };
     }
     default:
@@ -213,7 +241,16 @@ Any node may add "transform":{"translate":[x,y,z],"rotate":[degX,degY,degZ],"sca
 Cylinders/cones are oriented along the Y axis — rotate to reorient (e.g. a hole through a plate's thickness along Y needs no rotation). Units are millimetres; keep parts a few to a few hundred mm.
 Example — a 40×40×10 plate with a 6 mm hole through its 10 mm thickness:
 {"type":"difference","children":[{"type":"box","size":[40,10,40]},{"type":"cylinder","radius":3,"height":12}]}
-After generating, briefly describe the part and its key dimensions, and note they can export STL from the toolbar.`;
+
+### Make it editable (IMPORTANT — do this for every part)
+Expose the part's key dimensions as named parameters so the user can edit them with sliders.
+- Pass a 'params' JSON string: an array of {"key","label","value","min","max","unit":"mm"}.
+- In the spec, write the param KEY (a quoted string) wherever that dimension appears, instead of the number.
+Same plate, now parametric:
+  spec   = {"type":"difference","children":[{"type":"box","size":["width","thickness","depth"]},{"type":"cylinder","radius":"hole_r","height":20}]}
+  params = [{"key":"width","label":"Width","value":40,"min":20,"max":80,"unit":"mm"},{"key":"thickness","label":"Thickness","value":10,"min":4,"max":24,"unit":"mm"},{"key":"depth","label":"Depth","value":40,"min":20,"max":80,"unit":"mm"},{"key":"hole_r","label":"Hole radius","value":3,"min":1.5,"max":8,"unit":"mm"}]
+Reuse one key for dimensions that must stay equal (e.g. a square plate uses "width" for two sides). If you omit params, the workspace still derives sliders automatically, but named params read better.
+After generating, briefly describe the part and its key dimensions, and note they can edit parameters on the right and export STL from the toolbar.`;
 
 /** Build the system prompt, optionally personalised with the user's name. */
 export function buildSystemPrompt(user?: { name?: string }): string {

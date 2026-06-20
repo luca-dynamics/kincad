@@ -12,17 +12,24 @@ import {
   type SliderCrankLinkage,
 } from "../engine";
 import type { WorkspaceState } from "../state";
+import type { ViewMode } from "./TopBar";
+import type { CadModel } from "../cad/types";
 import { ParamRow, ResultRow, Section, SegToggle, IconButton } from "./ui";
 
 interface Props {
   state: WorkspaceState;
+  viewMode: ViewMode;
   onPatchFourBar: (p: Partial<FourBarLinkage>) => void;
   onPatchSlider: (p: Partial<SliderCrankLinkage>) => void;
+  onPatchCad: (key: string, value: number) => void;
   onResetParams: () => void;
 }
 
-export default function Panel({ state, onPatchFourBar, onPatchSlider, onResetParams }: Props) {
+export default function Panel({ state, viewMode, onPatchFourBar, onPatchSlider, onPatchCad, onResetParams }: Props) {
   const isFour = state.kind === "fourbar";
+  // In the CAD view, the dock edits the generated part's parameters, not the mechanism.
+  const isCad = viewMode === "cad" && !!state.cadModel;
+
   return (
     <div className="flex h-full w-full flex-col border-l border-line bg-panel">
       <div className="flex h-14 items-center justify-between border-b border-line px-4">
@@ -33,21 +40,61 @@ export default function Panel({ state, onPatchFourBar, onPatchSlider, onResetPar
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <Section title="Dimensions" count={isFour ? 6 : 3}>
-          {isFour ? (
-            <FourBarParams link={state.fourbar} onPatch={onPatchFourBar} />
-          ) : (
-            <SliderParams link={state.slider} onPatch={onPatchSlider} />
-          )}
-        </Section>
+        {isCad ? (
+          <CadParams model={state.cadModel!} onPatch={onPatchCad} />
+        ) : (
+          <>
+            <Section title="Dimensions" count={isFour ? 6 : 3}>
+              {isFour ? (
+                <FourBarParams link={state.fourbar} onPatch={onPatchFourBar} />
+              ) : (
+                <SliderParams link={state.slider} onPatch={onPatchSlider} />
+              )}
+            </Section>
 
-        <div className="my-3.5 border-t border-line" />
+            <div className="my-3.5 border-t border-line" />
 
-        <Section title="Results — live">
-          {isFour ? <FourBarResults state={state} /> : <SliderResults state={state} />}
-        </Section>
+            <Section title="Results — live">
+              {isFour ? <FourBarResults state={state} /> : <SliderResults state={state} />}
+            </Section>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function CadParams({ model, onPatch }: { model: CadModel; onPatch: (key: string, value: number) => void }) {
+  const params = model.params ?? [];
+  return (
+    <>
+      <Section title="Part">
+        <ResultRow k="Name" v={model.name} accent="var(--accent)" />
+        <ResultRow k="Parameters" v={String(params.length)} />
+      </Section>
+
+      <div className="my-3.5 border-t border-line" />
+
+      <Section title="Dimensions" count={params.length}>
+        {params.length === 0 ? (
+          <p className="text-xs text-muted">This part has no editable parameters.</p>
+        ) : (
+          params.map((p) => (
+            <ParamRow
+              key={p.key}
+              label={p.label}
+              value={p.value}
+              min={p.min ?? 0}
+              max={p.max ?? Math.max(p.value * 3, p.value + 10)}
+              step={p.step ?? 0.5}
+              unit={p.unit ?? "mm"}
+              decimals={1}
+              onChange={(v) => onPatch(p.key, v)}
+            />
+          ))
+        )}
+      </Section>
+    </>
   );
 }
 

@@ -19,6 +19,7 @@ import { Landing } from "./components/Landing";
 import type { ViewMode } from "./components/TopBar";
 import { exportCanvasPNG, exportReportPDF } from "./report/pdf";
 import { buildCad } from "./cad/build";
+import { normalizeCadModel } from "./cad/params";
 import { exportSTL } from "./cad/stl";
 import { getModel, OFFLINE, probeModels } from "./ai/models";
 import { applyActions } from "./ai/apply";
@@ -98,6 +99,15 @@ export default function App() {
     [],
   );
   const setTheta2 = useCallback((t: number) => setState((s) => ({ ...s, theta2: t })), []);
+  const patchCadParam = useCallback(
+    (key: string, value: number) =>
+      setState((s) =>
+        s.cadModel?.params
+          ? { ...s, cadModel: { ...s.cadModel, params: s.cadModel.params.map((p) => (p.key === key ? { ...p, value } : p)) } }
+          : s,
+      ),
+    [],
+  );
 
   const buildReport = (s: WorkspaceState): AnalysisReport =>
     s.kind === "fourbar" ? buildFourBarReport(s.fourbar, 360) : buildSliderCrankReport(s.slider, 360);
@@ -157,7 +167,7 @@ export default function App() {
             return {
               ...s,
               ...next,
-              ...(cadAction && cadAction.type === "set_cad" ? { cadModel: cadAction.model } : {}),
+              ...(cadAction && cadAction.type === "set_cad" ? { cadModel: normalizeCadModel(cadAction.model) } : {}),
               playing: true,
             };
           });
@@ -207,7 +217,7 @@ export default function App() {
       kind: c.workspace.kind,
       fourbar: c.workspace.fourbar,
       slider: c.workspace.slider,
-      cadModel: c.workspace.cadModel ?? null,
+      cadModel: c.workspace.cadModel ? normalizeCadModel(c.workspace.cadModel) : null,
       theta2: 0,
       playing: true,
     }));
@@ -231,7 +241,7 @@ export default function App() {
   };
   const exportSTLModel = () => {
     if (!state.cadModel) return;
-    const { mesh } = buildCad(state.cadModel.node);
+    const { mesh } = buildCad(state.cadModel.node, undefined, state.cadModel.params);
     exportSTL(mesh, `${state.cadModel.name.replace(/\s+/g, "-").toLowerCase() || "kincad-model"}.stl`);
   };
 
@@ -295,13 +305,22 @@ export default function App() {
   );
 
   const paramsNode = (
-    <Panel state={state} onPatchFourBar={patchFourBar} onPatchSlider={patchSlider} onResetParams={resetParams} />
+    <Panel
+      state={state}
+      viewMode={viewMode}
+      onPatchFourBar={patchFourBar}
+      onPatchSlider={patchSlider}
+      onPatchCad={patchCadParam}
+      onResetParams={resetParams}
+    />
   );
 
   /* ── MOBILE layout ────────────────────────────────────────────── */
   if (mobile) {
     return (
-      <div className="flex h-screen flex-col overflow-hidden bg-bg text-fg">
+      // h-dvh (dynamic viewport height), NOT h-screen/100vh: on mobile browsers 100vh
+      // includes the area behind the URL bar, which pushes the bottom tab bar off-screen.
+      <div className="flex h-dvh flex-col overflow-hidden bg-bg text-fg">
         {onboarding}
         {/* Backdrop for overlay sidebar */}
         {sidebarOpen && (
