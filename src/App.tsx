@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Group, Panel as RPanel, Separator } from "react-resizable-panels";
+import { useMobile } from "./hooks/useMobile";
+import { MobileNav, type MobileTab } from "./components/MobileNav";
 import {
   buildFourBarReport,
   buildSliderCrankReport,
@@ -47,6 +49,8 @@ export default function App() {
   // agent has run a workspace action. Conceptual Q&A stays in a clean chat-only layout.
   const [hasMechanism, setHasMechanism] = useState(false);
   const [profile, setProfile] = useState(loadProfile);
+  const [mobileTab, setMobileTab] = useState<MobileTab>("chat");
+  const mobile = useMobile();
 
   useEffect(() => {
     setConversations(loadConversations());
@@ -152,6 +156,7 @@ export default function App() {
           // A mechanism / model is now in play → reveal the workspace and make room for it.
           setHasMechanism(true);
           setSidebarOpen(false);
+          setMobileTab("view"); // on mobile, jump to the workspace tab after agent acts
         }
         setMessages((m) => [...m, { role: "assistant", content: prefix + reply.text, actions: reply.actions }]);
       } catch (err) {
@@ -210,7 +215,7 @@ export default function App() {
   };
   const resetParams = () => setState((s) => ({ ...INITIAL_STATE, kind: s.kind }));
 
-  const exportPDF = () => exportReportPDF(buildReport(state), getCanvasDataUrl());
+  const exportPDF = () => exportReportPDF(buildReport(state), getCanvasDataUrl(), state);
   const exportPNG = () => {
     const cv = document.getElementById("cad-canvas") as HTMLCanvasElement | null;
     if (cv) exportCanvasPNG(cv);
@@ -221,39 +226,129 @@ export default function App() {
     exportSTL(mesh, `${state.cadModel.name.replace(/\s+/g, "-").toLowerCase() || "kincad-model"}.stl`);
   };
 
+  const sidebarNode = (
+    <Sidebar
+      open={sidebarOpen}
+      onToggle={() => setSidebarOpen((o) => !o)}
+      conversations={conversations}
+      currentId={currentId}
+      onNewChat={newChat}
+      onOpenConversation={(id) => { openConversation(id); if (mobile) setSidebarOpen(false); }}
+      onDeleteConversation={removeConversation}
+      onQuickStart={(k) => { quickStart(k); if (mobile) setSidebarOpen(false); }}
+      onReplayIntro={() => {
+        const next = { ...profile, onboarded: false };
+        saveProfile(next);
+        setProfile(next);
+      }}
+      mobile={mobile}
+    />
+  );
+
+  const onboarding = !profile.onboarded && (
+    <Onboarding
+      onComplete={(name) => {
+        const next = { name, onboarded: true };
+        saveProfile(next);
+        setProfile(next);
+      }}
+    />
+  );
+
+  const viewportNode = (
+    <Viewport
+      state={state}
+      viewMode={viewMode}
+      onSetViewMode={setViewMode}
+      plotsOpen={plotsOpen}
+      onTogglePlots={() => setPlotsOpen((o) => !o)}
+      onPatch={patch}
+      onPatchFourBar={patchFourBar}
+      onPatchSlider={patchSlider}
+      onSetTheta2={setTheta2}
+      onTogglePlay={() => patch({ playing: !state.playing })}
+      onReset={resetParams}
+      onExportPDF={exportPDF}
+      onExportPNG={exportPNG}
+      onExportSTL={exportSTLModel}
+    />
+  );
+
+  const chatPanelNode = (
+    <ChatPanel
+      messages={messages}
+      busy={busy}
+      modelId={modelId}
+      onModelChange={setModelId}
+      onSend={send}
+      onNewChat={newChat}
+    />
+  );
+
+  const paramsNode = (
+    <Panel state={state} onPatchFourBar={patchFourBar} onPatchSlider={patchSlider} onResetParams={resetParams} />
+  );
+
+  /* ── MOBILE layout ────────────────────────────────────────────── */
+  if (mobile) {
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-bg text-fg">
+        {onboarding}
+        {/* Backdrop for overlay sidebar */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        {sidebarNode}
+
+        {/* Main content area — switches on mobileTab */}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {!started ? (
+            <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy} />
+          ) : !hasMechanism ? (
+            <ChatPanel
+              variant="full"
+              messages={messages}
+              busy={busy}
+              modelId={modelId}
+              onModelChange={setModelId}
+              onSend={send}
+              onNewChat={newChat}
+            />
+          ) : (
+            <>
+              <div className={`h-full ${mobileTab === "chat" ? "block" : "hidden"}`}>{chatPanelNode}</div>
+              <div className={`h-full ${mobileTab === "view" ? "block" : "hidden"}`}>{viewportNode}</div>
+              <div className={`h-full ${mobileTab === "params" ? "block" : "hidden"}`}>{paramsNode}</div>
+            </>
+          )}
+        </div>
+
+        {/* Bottom tab nav — only shown once a conversation is started */}
+        {(started || hasMechanism) && (
+          <MobileNav
+            tab={mobileTab}
+            onTab={(t) => { setMobileTab(t); }}
+            onMenu={() => setSidebarOpen((o) => !o)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  /* ── DESKTOP layout ───────────────────────────────────────────── */
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-fg">
-      {!profile.onboarded && (
-        <Onboarding
-          onComplete={(name) => {
-            const next = { name, onboarded: true };
-            saveProfile(next);
-            setProfile(next);
-          }}
-        />
-      )}
-      <Sidebar
-        open={sidebarOpen}
-        onToggle={() => setSidebarOpen((o) => !o)}
-        conversations={conversations}
-        currentId={currentId}
-        onNewChat={newChat}
-        onOpenConversation={openConversation}
-        onDeleteConversation={removeConversation}
-        onQuickStart={quickStart}
-        onReplayIntro={() => {
-          const next = { ...profile, onboarded: false };
-          saveProfile(next);
-          setProfile(next);
-        }}
-      />
+      {onboarding}
+      {sidebarNode}
 
       {!started ? (
         <main className="flex min-w-0 flex-1 flex-col">
           <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy} />
         </main>
       ) : !hasMechanism ? (
-        // Chat-only: conceptual Q&A, no mechanism yet — keep it clean and centered.
         <main className="min-w-0 flex-1">
           <ChatPanel
             variant="full"
@@ -268,41 +363,19 @@ export default function App() {
       ) : (
         <Group orientation="horizontal" id="kincad-panels" className="min-w-0 flex-1">
           <RPanel id="chat" collapsible defaultSize="26%" minSize="320px" maxSize="520px">
-            <ChatPanel
-              messages={messages}
-              busy={busy}
-              modelId={modelId}
-              onModelChange={setModelId}
-              onSend={send}
-              onNewChat={newChat}
-            />
+            {chatPanelNode}
           </RPanel>
 
           <Handle />
 
           <RPanel id="view" minSize="30%">
-            <Viewport
-              state={state}
-              viewMode={viewMode}
-              onSetViewMode={setViewMode}
-              plotsOpen={plotsOpen}
-              onTogglePlots={() => setPlotsOpen((o) => !o)}
-              onPatch={patch}
-              onPatchFourBar={patchFourBar}
-              onPatchSlider={patchSlider}
-              onSetTheta2={setTheta2}
-              onTogglePlay={() => patch({ playing: !state.playing })}
-              onReset={resetParams}
-              onExportPDF={exportPDF}
-              onExportPNG={exportPNG}
-              onExportSTL={exportSTLModel}
-            />
+            {viewportNode}
           </RPanel>
 
           <Handle />
 
           <RPanel id="params" collapsible defaultSize="24%" minSize="300px" maxSize="380px">
-            <Panel state={state} onPatchFourBar={patchFourBar} onPatchSlider={patchSlider} onResetParams={resetParams} />
+            {paramsNode}
           </RPanel>
         </Group>
       )}

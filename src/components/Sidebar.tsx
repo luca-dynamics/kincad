@@ -15,6 +15,8 @@ interface Props {
   onDeleteConversation: (id: string) => void;
   onQuickStart: (k: MechanismKind) => void;
   onReplayIntro: () => void;
+  /** Mobile overlay mode: sidebar floats over content instead of pushing it. */
+  mobile?: boolean;
 }
 
 export function Sidebar({
@@ -27,11 +29,19 @@ export function Sidebar({
   onDeleteConversation,
   onQuickStart,
   onReplayIntro,
+  mobile,
 }: Props) {
   const { theme, toggle } = useTheme();
 
+  // On mobile the sidebar is a fixed overlay drawer; on desktop it's an inline column.
+  const asideClass = mobile
+    ? `fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col border-r border-line bg-panel shadow-xl transition-transform duration-200 ${
+        open ? "translate-x-0" : "-translate-x-full"
+      }`
+    : `flex h-full flex-col border-r border-line bg-panel transition-all duration-200 ${open ? "w-64" : "w-14"}`;
+
   return (
-    <aside className={`flex h-full flex-col border-r border-line bg-panel transition-all duration-200 ${open ? "w-64" : "w-14"}`}>
+    <aside className={asideClass}>
       {/* brand + collapse */}
       <div className="flex h-14 items-center gap-2 px-3">
         {open ? <Logo size={22} className="flex-1" /> : <LogoMark size={24} />}
