@@ -167,10 +167,10 @@ export function Sidebar({
           <RotateCcw className="h-4 w-4" />
         </IconButton>
         <a
-          href="https://github.com/Adam-CAD/CADAM"
+          href="https://github.com/luca-dynamics/kincad"
           target="_blank"
           rel="noreferrer"
-          title="CADAM (design reference)"
+          title="KINCAD on GitHub"
           className="grid h-8 w-8 place-items-center rounded-md text-faint transition-colors hover:bg-line hover:text-fg"
         >
           <Code2 className="h-4 w-4" />
