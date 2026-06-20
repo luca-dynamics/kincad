@@ -95,7 +95,12 @@ export function ModelSelect({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}
         >
-          <div className="glass w-[min(360px,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto rounded-xl p-2 shadow-xl">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose AI model"
+            className="glass w-[min(360px,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto rounded-xl p-2 shadow-xl"
+          >
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
               <span className="text-xs font-semibold text-fg">Choose model</span>
               <button

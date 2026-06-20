@@ -3,7 +3,7 @@
 
 import type { Provider } from "../../shared/models";
 
-const STORE = "macking-byok";
+const STORE = "kincad-byok";
 
 type KeyStore = Partial<Record<Provider, string>>;
 

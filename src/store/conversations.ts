@@ -24,7 +24,7 @@ export interface Conversation {
   workspace: ConversationSnapshot;
 }
 
-const KEY = "macking-conversations-v1";
+const KEY = "kincad-conversations-v1";
 
 type Store = Record<string, Conversation>;
 
