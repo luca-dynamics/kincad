@@ -39,7 +39,12 @@ export class ProxyAgent implements AgentModel {
         messages: messages.map((m) => ({
           role: m.role,
           content: m.content,
-          images: m.attachments?.map((a) => ({ mime: a.mime, dataUrl: a.dataUrl })),
+          images: m.attachments
+            ?.filter((a) => (a.kind ?? "image") === "image")
+            .map((a) => ({ mime: a.mime, dataUrl: a.dataUrl! })),
+          documents: m.attachments
+            ?.filter((a) => a.kind === "pdf" || a.kind === "document")
+            .map((a) => ({ name: a.name, mime: a.mime, kind: a.kind, data: a.dataUrl ?? a.text ?? "" })),
         })),
         context: { kind: ctx.kind, fourbar: ctx.fourbar, slider: ctx.slider, user: ctx.user },
         apiKey: getKey(this.provider), // BYOK; undefined falls back to the server key

@@ -7,10 +7,17 @@ export interface TurnImage {
   mime: string;
   dataUrl: string; // data:<mime>;base64,<data>
 }
+export interface TurnDocument {
+  name: string;
+  mime: string;
+  kind: "pdf" | "document";
+  data: string; // base64 data URL for PDFs; raw text for documents
+}
 export interface ChatTurn {
   role: "user" | "assistant";
   content: string;
   images?: TurnImage[];
+  documents?: TurnDocument[];
 }
 
 /** Split a data URL into media type + base64 payload. */
@@ -36,9 +43,19 @@ export async function runAnthropic(
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const messages: unknown[] = history.map((m) => {
-    if (m.images?.length) {
-      const blocks: unknown[] = [{ type: "text", text: m.content }];
-      for (const img of m.images) {
+    if (m.images?.length || m.documents?.length) {
+      const blocks: unknown[] = [];
+      // PDF and text document blocks (before the user text so context precedes the question)
+      for (const doc of m.documents ?? []) {
+        if (doc.kind === "pdf") {
+          const base64 = doc.data.replace(/^data:[^;]+;base64,/, "");
+          blocks.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 }, title: doc.name });
+        } else {
+          blocks.push({ type: "text", text: `[Attached file: ${doc.name}]\n\`\`\`\n${doc.data.slice(0, 12000)}\n\`\`\`` });
+        }
+      }
+      blocks.push({ type: "text", text: m.content });
+      for (const img of m.images ?? []) {
         const { mime, data } = splitDataUrl(img.dataUrl);
         blocks.push({ type: "image", source: { type: "base64", media_type: mime, data } });
       }
@@ -91,12 +108,21 @@ export async function runOpenAI(
   const messages: unknown[] = [
     { role: "system", content: system },
     ...history.map((m) => {
+      // Prepend any document text to the user message content (GPT has no native PDF support)
+      let textContent = m.content;
+      for (const doc of m.documents ?? []) {
+        if (doc.kind === "pdf") {
+          textContent = `[PDF attached: ${doc.name} — this model cannot read PDFs directly; switch to Gemini or Claude to analyse PDF files.]\n\n` + textContent;
+        } else {
+          textContent = `[Attached file: ${doc.name}]\n\`\`\`\n${doc.data.slice(0, 12000)}\n\`\`\`\n\n` + textContent;
+        }
+      }
       if (m.images?.length) {
-        const content: unknown[] = [{ type: "text", text: m.content }];
+        const content: unknown[] = [{ type: "text", text: textContent }];
         for (const img of m.images) content.push({ type: "image_url", image_url: { url: img.dataUrl } });
         return { role: m.role, content };
       }
-      return { role: m.role, content: m.content };
+      return { role: m.role, content: textContent };
     }),
   ];
   const tools = TOOLS.map((t) => ({
@@ -162,7 +188,17 @@ export async function runGemini(
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const contents: unknown[] = history.map((m) => {
-    const parts: unknown[] = [{ text: m.content }];
+    const parts: unknown[] = [];
+    // Documents before the message text so context precedes the question
+    for (const doc of m.documents ?? []) {
+      if (doc.kind === "pdf") {
+        const base64 = doc.data.replace(/^data:[^;]+;base64,/, "");
+        parts.push({ inlineData: { mimeType: "application/pdf", data: base64 } });
+      } else {
+        parts.push({ text: `[Attached file: ${doc.name}]\n\`\`\`\n${doc.data.slice(0, 12000)}\n\`\`\`` });
+      }
+    }
+    parts.push({ text: m.content });
     for (const img of m.images ?? []) {
       const { mime, data } = splitDataUrl(img.dataUrl);
       parts.push({ inlineData: { mimeType: mime, data } });

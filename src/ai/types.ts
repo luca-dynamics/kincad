@@ -13,12 +13,17 @@ import type {
 import type { MechanismKind } from "../state";
 import type { CadModel } from "../cad/types";
 
-/** An uploaded image attachment (e.g. a hand-sketch of a mechanism) for vision-capable models. */
+/** An uploaded file attachment — image, PDF, DOCX, or plain-text document. */
 export interface Attachment {
   id: string;
   name: string;
-  mime: string; // e.g. image/png
-  dataUrl: string; // base64 data URL
+  mime: string;
+  /** Distinguishes rendering and transmission mode. */
+  kind: "image" | "pdf" | "document";
+  /** Base64 data URL — present for images and PDFs. */
+  dataUrl?: string;
+  /** Extracted plain text — present for DOCX, TXT, CSV, MD files. */
+  text?: string;
 }
 
 export interface ChatMessage {
