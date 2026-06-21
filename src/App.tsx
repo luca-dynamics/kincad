@@ -58,11 +58,11 @@ export default function App() {
   useEffect(() => {
     setConversations(loadConversations());
     probeModels().then(() => {
-      // Pick the first available model in preference order. Gemini 3.5 Flash is the default
+      // Pick the first available model in preference order. Gemini 2.5 Flash is the default
       // (most quota for the FYP demo); the rest are fallbacks if Google isn't keyed.
       const preferred = [
-        "gemini-3.5-flash",
         "gemini-2.5-flash",
+        "gemini-3.5-flash",
         "gemini-3-pro",
         "gemini-2.5-pro",
         "gemini-2.0-flash",
