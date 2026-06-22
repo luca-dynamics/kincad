@@ -1,94 +1,89 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 
 /* dark mode driven by a `.dark` class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ── KINCAD design system ────────────────────────────────────────────────────
-   Premium CAD aesthetic. Semantic colours are CSS variables that flip between
-   light (warm cream) and dark (deep cool-neutral); Tailwind maps to them via
-   @theme inline so components never need dark: variants.                     */
+   Clean, professional CAD aesthetic — flat surfaces, no gradients, no glow.
+   Semantic CSS variables flip between light (warm cream) and dark (neutral
+   near-black); Tailwind maps to them via @theme inline.                      */
 
 :root {
-  /* ── surfaces — warm cream ─────────────────────────────────── */
-  --bg:       #f0ece0;    /* app background — warm cream */
-  --panel:    #e8e3d5;    /* sidebar / panels — beige */
-  --panel-2:  #f8f5ec;    /* raised controls, inputs */
-  --elevated: #f8f5ec;
-  --line:       rgba(60, 48, 20, 0.11);
-  --line-strong:rgba(60, 48, 20, 0.18);
+  /* ── surfaces — warm cream (light mode) ─────────────────────── */
+  --bg:        #f2eee2;
+  --panel:     #eae5d7;
+  --panel-2:   #faf8f1;
+  --elevated:  #faf8f1;
+  --line:       rgba(60, 48, 20, 0.12);
+  --line-strong:rgba(60, 48, 20, 0.20);
 
   /* ── text ───────────────────────────────────────────────────── */
   --fg:    #1f1c14;
   --muted: #635e52;
   --faint: #948e7a;
 
-  /* ── accent — violet ────────────────────────────────────────── */
-  --accent:     #6d28d9;       /* violet-700 — vivid on cream */
-  --accent-fg:  #ffffff;
-  --accent-glow:rgba(109, 40, 217, 0.10);
+  /* ── accent ─────────────────────────────────────────────────── */
+  --accent:    #7c3aed;
+  --accent-fg: #ffffff;
 
   /* ── status ─────────────────────────────────────────────────── */
   --good: #1e7a4b;
   --warn: #a36309;
   --bad:  #b83b28;
 
-  /* ── canvas (engineering drawing) ───────────────────────────── */
-  --canvas-bg:    #f4f1e6;
-  --canvas-grid:  #e4dfc9;
-  --canvas-axis:  #cfc9b3;
-  --c-ground:     #8a8478;
-  --c-link2:      #6d28d9;
-  --c-link3:      #6b7280;
-  --c-link4:      #b56b0a;
+  /* ── canvas ─────────────────────────────────────────────────── */
+  --canvas-bg:    #f6f3ea;
+  --canvas-grid:  #e7e1d1;
+  --canvas-axis:  #d5cdba;
+  --c-ground:     #8f897a;
+  --c-link2:      #7c3aed;
+  --c-link3:      #6f7787;
+  --c-link4:      #c47e12;
   --c-joint:      #1f1c14;
-  --c-coupler-pt: #be3c8e;
-  --c-curve:      #be3c8e;
-  --c-plot-grid:  #e6e0cc;
+  --c-coupler-pt: #cf3f93;
+  --c-curve:      #cf3f93;
+  --c-plot-grid:  #e8e2d3;
 
-  --radius: 0.625rem;     /* 10 px — slightly rounder than before */
+  --radius: 0.5rem;
   color-scheme: light;
 }
 
 .dark {
-  /* ── surfaces — deep cool-neutral ──────────────────────────── */
-  /* Key change: move from flat mid-grey to deep near-black with a subtle
-     cool (slightly blue-grey) tint. This makes the purple accent pop and
-     creates real depth hierarchy between bg / panel / panel-2.            */
-  --bg:       #0d0e11;    /* very deep, barely-tinted cool dark */
-  --panel:    #13151a;    /* sidebar — lifted just above bg */
-  --panel-2:  #1a1d22;    /* inputs / cards — clear step up */
-  --elevated: #09090c;    /* canvas / deepest surfaces */
-  --line:       rgba(255, 255, 255, 0.07);
-  --line-strong:rgba(255, 255, 255, 0.13);
+  /* ── surfaces — clean neutral dark (CADAM / shadcn new-york) ── */
+  --bg:        #0f0f0f;   /* near-black, no tint */
+  --panel:     #1a1a1a;   /* sidebar / nav panels */
+  --panel-2:   #242424;   /* inputs, raised cards */
+  --elevated:  #0a0a0a;   /* deepest — canvas bg */
+  --line:       rgba(255, 255, 255, 0.08);
+  --line-strong:rgba(255, 255, 255, 0.14);
 
   /* ── text ───────────────────────────────────────────────────── */
-  --fg:    #e8eaf0;       /* slightly cool white, not pure */
-  --muted: #8b8fa0;
-  --faint: #585c6e;
+  --fg:    #fafafa;
+  --muted: #a1a1a1;
+  --faint: #636363;
 
-  /* ── accent — bright violet on dark ─────────────────────────── */
-  --accent:     #a78bfa;   /* violet-400 — luminous on dark */
-  --accent-fg:  #0e0b1a;
-  --accent-glow:rgba(167, 139, 250, 0.14);
+  /* ── accent ─────────────────────────────────────────────────── */
+  --accent:    #a78bfa;
+  --accent-fg: #0d0d0d;
 
   /* ── status ─────────────────────────────────────────────────── */
-  --good: #34d399;
+  --good: #4ade80;
   --warn: #fbbf24;
   --bad:  #f87171;
 
   /* ── canvas ─────────────────────────────────────────────────── */
-  --canvas-bg:    #0c0d10;
-  --canvas-grid:  #18191e;
-  --canvas-axis:  #232630;
+  --canvas-bg:    #0a0a0a;
+  --canvas-grid:  #1a1a1a;
+  --canvas-axis:  #2a2a2a;
   --c-ground:     #52576a;
   --c-link2:      #a78bfa;
   --c-link3:      #8896ae;
   --c-link4:      #fbbf24;
-  --c-joint:      #dde3f0;
+  --c-joint:      #e5e5e5;
   --c-coupler-pt: #e879c0;
   --c-curve:      #e879c0;
-  --c-plot-grid:  #151720;
+  --c-plot-grid:  #1a1a1a;
   color-scheme: dark;
 }
 
@@ -123,18 +118,7 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.012em;   /* tighter Inter — more premium feel */
   overflow: hidden;
-}
-
-/* ── Dark mode ambient background ────────────────────────────────────────────
-   Very subtle: a radial purple bloom from the top, plus a 28 px dot grid
-   at near-zero opacity — the same texture used by Linear, Vercel, Supabase. */
-.dark body {
-  background-image:
-    radial-gradient(ellipse 100% 55% at 50% 0%, var(--accent-glow) 0%, transparent 70%),
-    radial-gradient(circle 1px at 1px 1px, rgba(255,255,255,0.022) 0%, transparent 0%);
-  background-size: 100% 100%, 28px 28px;
 }
 
 .num {
@@ -143,72 +127,48 @@ body {
   font-feature-settings: "tnum";
 }
 
-/* ── glass surfaces ───────────────────────────────────────────────────────────
-   Two tiers — .glass for floating overlays, .glass-2 for inline raised cards.
-   Both gain an inner top highlight and a layered ambient shadow.              */
+/* ── glass surfaces ───────────────────────────────────────────────────────── */
 .glass {
-  background: color-mix(in srgb, var(--panel) 86%, transparent);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--line-strong);
   box-shadow:
-    0 0 0 1px rgba(255,255,255,0.04) inset,
-    0 1px 0   rgba(255,255,255,0.10) inset,
-    0 16px 48px rgba(0,0,0,0.24),
-    0  4px 12px rgba(0,0,0,0.12);
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 12px 40px rgba(0,0,0,0.20);
 }
 .glass-2 {
-  background: color-mix(in srgb, var(--panel-2) 76%, transparent);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
   border: 1px solid var(--line);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.07) inset,
-    0 2px 8px rgba(0,0,0,0.08);
 }
 .glass-2:hover {
-  background: color-mix(in srgb, var(--panel-2) 90%, transparent);
-}
-
-/* ── gradient text ────────────────────────────────────────────────────────── */
-.kc-gradient-text {
-  background: linear-gradient(135deg, var(--fg) 20%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* ── ambient accent glow element ─────────────────────────────────────────── */
-.kc-glow {
-  filter: drop-shadow(0 0 16px var(--accent-glow));
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent);
 }
 
 /* ── animations ───────────────────────────────────────────────────────────── */
 @keyframes kc-fade {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.kc-step { animation: kc-fade 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.kc-step { animation: kc-fade 0.28s ease-out; }
 
 @keyframes kc-pop {
-  from { opacity: 0; transform: scale(0.96) translateY(4px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }
-.kc-pop { animation: kc-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+.kc-pop { animation: kc-pop 0.18s ease-out; }
 
-/* ── scrollbar — slim, subtle ─────────────────────────────────────────────── */
-*::-webkit-scrollbar       { width: 4px; height: 4px; }
+/* ── scrollbar ────────────────────────────────────────────────────────────── */
+*::-webkit-scrollbar       { width: 5px; height: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
   background: var(--line-strong);
   border-radius: 4px;
 }
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--faint);
-}
 
-/* ── range slider — accent track fill, smooth thumb ──────────────────────── */
+/* ── range slider ─────────────────────────────────────────────────────────── */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -217,30 +177,21 @@ input[type="range"] {
   border-radius: 3px;
   outline: none;
   cursor: pointer;
-  transition: background 0.15s;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 0 0 3px var(--accent-glow);
-  transition: box-shadow 0.15s, transform 0.12s;
-}
-input[type="range"]::-webkit-slider-thumb:hover,
-input[type="range"]:active::-webkit-slider-thumb {
-  box-shadow: 0 0 0 5px var(--accent-glow);
-  transform: scale(1.12);
 }
 input[type="range"]::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border: none;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
-  box-shadow: 0 0 0 3px var(--accent-glow);
 }

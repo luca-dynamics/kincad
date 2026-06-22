@@ -25,17 +25,11 @@ export function ChatPanel({
   const full = variant === "full";
   return (
     <div className={`flex h-full w-full flex-col bg-panel ${full ? "" : "border-r border-line"}`}>
-      <div className="flex h-14 flex-shrink-0 items-center gap-2.5 border-b border-line px-4">
-        <div className="relative flex items-center">
-          <div
-            className="absolute -inset-1 rounded-full"
-            style={{ background: "var(--accent)", opacity: 0.15, filter: "blur(6px)" }}
-          />
-          <Sparkles className="relative h-4 w-4 text-accent" />
-        </div>
-        <span className="text-[13.5px] font-semibold tracking-[-0.02em] text-fg">
-          KIN<span className="text-accent">CAD</span>{" "}
-          <span className="font-normal text-muted">Agent</span>
+      <div className="flex h-14 flex-shrink-0 items-center gap-2 border-b border-line px-4">
+        <Sparkles className="h-4 w-4 text-accent" />
+        <span className="text-[13px] font-semibold tracking-tight text-fg">
+          KIN<span className="text-accent">CAD</span>
+          <span className="font-normal text-muted"> Agent</span>
         </span>
         <IconButton title="New chat" onClick={onNewChat} className="ml-auto">
           <Plus className="h-4 w-4" />
