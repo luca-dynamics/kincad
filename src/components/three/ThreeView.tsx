@@ -1,14 +1,25 @@
 // 3D view of the CURRENT mechanism. Same deterministic engine, rendered as extruded bars and
 // pin joints with @react-three/fiber. Orbit + view-cube gizmo, CADAM-style. This is one mode
 // of the generic Viewport "screen"; the 2D canvas is the other.
+//
+// The camera FRAMES the mechanism rather than sitting at a fixed distance: the position used to be
+// `[center.x, center.y - 6, 7]`, which is correct for a linkage a few units across and leaves a
+// 50mm one hanging off both edges. `AutoFrame` below places it from the swept extent
+// ([extent.ts](../../render/extent.ts)) and the canvas aspect via
+// [frame3d.ts](../../render/frame3d.ts), and re-frames whenever either changes — until the user
+// orbits, after which the view is theirs until they press Fit.
 
-import { useMemo, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { GizmoHelper, GizmoViewcube, Grid, OrbitControls } from "@react-three/drei";
+import { Maximize2 } from "lucide-react";
 import * as THREE from "three";
 import { analyzeFourBar, analyzeSliderCrank, couplerCurve, type Vec2 } from "../../engine";
+import { geometryKey, mechanismExtent, type Extent } from "../../render/extent";
+import { FOV, frameCamera } from "../../render/frame3d";
 import type { WorkspaceState } from "../../state";
 import { useTheme } from "../../theme";
+import { Button } from "../ui";
 
 interface Bar {
   a: Vec2;
@@ -23,15 +34,13 @@ interface Joint {
   fixed?: boolean;
 }
 
-function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Joint[]; curve: Vec2[]; center: Vec2 } {
+function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Joint[]; curve: Vec2[] } {
   const bars: Bar[] = [];
   const joints: Joint[] = [];
   let curve: Vec2[] = [];
-  let center: Vec2 = { x: 0, y: 0 };
 
   if (state.kind === "fourbar") {
     const st = analyzeFourBar(state.fourbar, state.theta2);
-    center = { x: state.fourbar.ground / 2, y: 0.5 };
     if (state.showCouplerCurve) curve = couplerCurve(state.fourbar, 200);
     if (st.valid) {
       bars.push({ a: st.O2, b: st.A, color: c.link2, thickness: 0.16 });
@@ -47,7 +56,6 @@ function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Jo
     joints.push({ p: st.O4, color: c.ground, r: 0.16, fixed: true });
   } else {
     const st = analyzeSliderCrank(state.slider, state.theta2);
-    center = { x: state.slider.rod * 0.6, y: state.slider.offset / 2 };
     if (st.valid) {
       bars.push({ a: st.O2, b: st.A, color: c.link2, thickness: 0.16 });
       bars.push({ a: st.A, b: st.B, color: c.link3, thickness: 0.16 });
@@ -56,7 +64,7 @@ function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Jo
     }
     joints.push({ p: st.O2, color: c.ground, r: 0.16, fixed: true });
   }
-  return { bars, joints, curve, center };
+  return { bars, joints, curve };
 }
 
 interface Colors {
@@ -102,6 +110,59 @@ function Ticker({ state, onSetTheta2 }: { state: WorkspaceState; onSetTheta2: (t
   return null;
 }
 
+/** Static so r3f never re-applies it over the camera AutoFrame is driving. `near`/`far` are set
+ *  here once and left alone: the clip range is generous enough for every framing distance this
+ *  computes, and writing to them per-frame is a mutation of a hook-owned object. `fov` is the one
+ *  [frame3d.ts](../../render/frame3d.ts) computes against — change them together. */
+const CAMERA_INIT = { fov: FOV, near: 0.1, far: 4000, position: [0, -6, 7] as [number, number, number] };
+
+/**
+ * Frames the mechanism: distance from the swept extent, the canvas aspect and the fov, so the whole
+ * cycle fits however the panel is sized — the arithmetic is in
+ * [frame3d.ts](../../render/frame3d.ts), which is testable without a WebGL context. Re-runs on every
+ * extent or size change while `enabled`.
+ *
+ * Lives inside the `<Canvas>` because that is the only place the camera, the canvas size and the
+ * default OrbitControls are reachable. `enabled` goes false the moment the user orbits — from then
+ * on the camera is theirs, and a geometry edit must not yank it back.
+ */
+function AutoFrame({ extent, enabled }: { extent: Extent; enabled: boolean }) {
+  const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
+  const controls = useThree((s) => s.controls) as
+    | { target: THREE.Vector3; update: () => void }
+    | null;
+
+  useLayoutEffect(() => {
+    if (!enabled) return;
+    const cam = camera as THREE.PerspectiveCamera;
+    const { position, target } = frameCamera(
+      extent,
+      size.width / Math.max(size.height, 1),
+      cam.fov,
+    );
+    const at = new THREE.Vector3(...target);
+    cam.position.set(...position);
+    cam.lookAt(at);
+    if (controls) {
+      controls.target.copy(at);
+      controls.update();
+    }
+  }, [camera, controls, enabled, extent, size.width, size.height]);
+
+  return null;
+}
+
+/**
+ * A 1-2-5 grid step for the span on screen — the same ladder [draw.ts](../../render/draw.ts) climbs
+ * for the 2D grid, so the two views agree about what a gridline means. A fixed 0.5 cell turns into
+ * noise the moment the mechanism is tens of units across.
+ */
+function niceStep(raw: number): number {
+  const pow = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1e-6))));
+  return ([1, 2, 5, 10].find((m) => m * pow >= raw) ?? 10) * pow;
+}
+
 function CouplerLine({ curve, color }: { curve: Vec2[]; color: string }) {
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry();
@@ -137,49 +198,82 @@ export default function ThreeView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
-  const { bars, joints, curve, center } = buildScene(state, colors);
+  const { bars, joints, curve } = buildScene(state, colors);
   const dark = theme === "dark";
 
+  // The box to frame: the mechanism over its whole cycle, not the pose on screen. Keyed off the
+  // dimensions only — θ₂ ticks 60×/s while playing and moves nothing the extent depends on, and a
+  // new object here would re-run the framing effect every frame.
+  const fitKey = geometryKey(state);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const extent = useMemo(() => mechanismExtent(state), [fitKey]);
+
+  // Auto-frame until the user orbits, zooms or clicks the view cube — after that the camera is
+  // theirs until Fit. `onStart` fires on user input only: our own `controls.update()` does not
+  // dispatch it, so re-framing cannot switch this on by itself.
+  const [manual, setManual] = useState(false);
+  const span = Math.max(extent.width, extent.height, 1);
+  const cell = niceStep(span / 12);
+
   return (
-    <Canvas shadows camera={{ position: [center.x, center.y - 6, 7], fov: 45 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
-      <color attach="background" args={[dark ? "#161717" : "#f7f7f6"]} />
-      <ambientLight intensity={dark ? 0.5 : 0.8} />
-      <directionalLight position={[4, 6, 8]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-5, -3, 4]} intensity={0.3} />
+    <div className="relative h-full w-full">
+      <Canvas shadows camera={CAMERA_INIT} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
+        {/* r3f cannot read CSS vars, so these four scene colours mirror the canvas tokens in
+            index.css by hand: background = --canvas-bg, the Grid pair ≈ --canvas-grid/--canvas-axis
+            lifted a step (three.js draws these as thin fading lines, so the flat token value
+            disappears), and the view-cube borrows --panel-2/--fg/--line-strong. Edit them WITH the
+            token blocks — nothing checks that they still agree. */}
+        <color attach="background" args={[dark ? "#000000" : "#faf9f5"]} />
+        <ambientLight intensity={dark ? 0.5 : 0.8} />
+        <directionalLight position={[4, 6, 8]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-5, -3, 4]} intensity={0.3} />
 
-      <group>
-        {bars.map((b, i) => (
-          <BarMesh key={i} bar={b} />
-        ))}
-        {joints.map((j, i) => (
-          <JointMesh key={i} joint={j} />
-        ))}
-        {curve.length > 1 && <CouplerLine curve={curve} color={colors.curve} />}
-      </group>
+        <group>
+          {bars.map((b, i) => (
+            <BarMesh key={i} bar={b} />
+          ))}
+          {joints.map((j, i) => (
+            <JointMesh key={i} joint={j} />
+          ))}
+          {curve.length > 1 && <CouplerLine curve={curve} color={colors.curve} />}
+        </group>
 
-      <Grid
-        position={[center.x, center.y, -0.3]}
-        rotation={[Math.PI / 2, 0, 0]}
-        args={[30, 30]}
-        cellSize={0.5}
-        cellThickness={0.5}
-        sectionSize={2}
-        cellColor={dark ? "#2a2d2d" : "#dcdcd9"}
-        sectionColor={dark ? "#3a3f3f" : "#c4c4c0"}
-        fadeDistance={28}
-        infiniteGrid
-      />
-
-      <Ticker state={state} onSetTheta2={onSetTheta2} />
-      <OrbitControls target={[center.x, center.y, 0]} enableDamping makeDefault />
-      <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
-        <GizmoViewcube
-          color={dark ? "#2d2d2d" : "#e5e5e3"}
-          textColor={dark ? "#e5e5e5" : "#1b1c1c"}
-          strokeColor={dark ? "#5a5a5a" : "#adadad"}
-          hoverColor="#a78bfa"
+        <Grid
+          position={[extent.center.x, extent.center.y, -0.3]}
+          rotation={[Math.PI / 2, 0, 0]}
+          args={[span * 4, span * 4]}
+          cellSize={cell}
+          cellThickness={0.5}
+          sectionSize={cell * 5}
+          cellColor={dark ? "#1f1f1f" : "#e9e5d9"}
+          sectionColor={dark ? "#2e2e2e" : "#d4cfc0"}
+          fadeDistance={span * 6 + 20}
+          infiniteGrid
         />
-      </GizmoHelper>
-    </Canvas>
+
+        <Ticker state={state} onSetTheta2={onSetTheta2} />
+        <AutoFrame extent={extent} enabled={!manual} />
+        <OrbitControls enableDamping makeDefault onStart={() => setManual(true)} />
+        <GizmoHelper alignment="bottom-right" margin={[64, 64]} onUpdate={() => setManual(true)}>
+          <GizmoViewcube
+            color={dark ? "#1f1f1f" : "#e7e4d7"}
+            textColor={dark ? "#ededed" : "#1f1e1d"}
+            strokeColor={dark ? "#4a4a4a" : "#b3aea1"}
+            hoverColor="#a78bfa"
+          />
+        </GizmoHelper>
+      </Canvas>
+      {manual && (
+        <Button
+          variant="outline"
+          title="Frame the mechanism again"
+          onClick={() => setManual(false)}
+          className="absolute bottom-3 left-3 bg-panel-2/85 backdrop-blur-sm"
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+          Fit
+        </Button>
+      )}
+    </div>
   );
 }

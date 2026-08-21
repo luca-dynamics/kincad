@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Check, Sparkles, Lock, KeyRound, X } from "lucide-react";
 import { ALL_MODELS, OFFLINE, PROXY_AGENTS, refreshAvailability, serverHasProvider } from "../../ai/models";
 import { getKey, hasKey, setKey } from "../../ai/keys";
+import { Button, IconButton } from "../ui";
 import { PROVIDER_LABEL, type Provider } from "../../../shared/models";
 
-const PROVIDERS: Provider[] = ["anthropic", "openai", "google"];
+// Derived from PROVIDER_LABEL rather than hand-listed, so a provider added to shared/models.ts
+// cannot end up with models in the registry but no section in this menu. Declaration order in
+// PROVIDER_LABEL is therefore also the display order here.
+const PROVIDERS = Object.keys(PROVIDER_LABEL) as Provider[];
 
 export function ModelSelect({
   modelId,
@@ -82,11 +86,17 @@ export function ModelSelect({
       <button
         ref={btnRef}
         onClick={openMenu}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted transition-colors hover:bg-line hover:text-fg"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        // Hand-rolled rather than `Button`, because this sits in a row of IconButtons in the
+        // composer and has to be exactly their height — 36px under a thumb, 32px under a mouse.
+        // `min-w-0` + a truncating label: gateway model names carry a provider suffix, and without
+        // this the longest of them widens the composer row instead of ellipsing.
+        className="flex h-9 min-w-0 items-center gap-1.5 rounded-lg px-2 text-meta text-muted transition-colors hover:bg-line hover:text-fg sm:h-8"
       >
-        <Sparkles className="h-3.5 w-3.5 text-accent" />
-        {current.label}
-        <ChevronDown className="h-3.5 w-3.5" />
+        <Sparkles className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
+        <span className="truncate">{current.label}</span>
+        <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" />
       </button>
 
       {/* ── Mobile: fixed backdrop + centred card ── */}
@@ -99,16 +109,13 @@ export function ModelSelect({
             role="dialog"
             aria-modal="true"
             aria-label="Choose AI model"
-            className="glass w-[min(360px,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto rounded-xl p-2 shadow-xl"
+            className="glass glass-modal max-h-[70dvh] w-[min(360px,calc(100vw-2rem))] overflow-y-auto rounded-2xl p-2"
           >
             <div className="flex items-center justify-between px-2 pb-2 pt-1">
-              <span className="text-xs font-semibold text-fg">Choose model</span>
-              <button
-                onClick={close}
-                className="grid h-6 w-6 place-items-center rounded-md text-muted hover:bg-line hover:text-fg"
-              >
+              <span className="text-body font-semibold text-fg">Choose model</span>
+              <IconButton title="Close" onClick={close}>
                 <X className="h-4 w-4" />
-              </button>
+              </IconButton>
             </div>
             {menuContent}
           </div>
@@ -119,7 +126,7 @@ export function ModelSelect({
       {open && !centred && (
         <div
           style={{ maxHeight: menuMaxH }}
-          className={`glass absolute left-0 z-30 w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-lg p-1.5 ${
+          className={`glass absolute left-0 z-30 w-72 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl p-1.5 ${
             dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
           }`}
         >
@@ -150,17 +157,19 @@ function ModelMenu({ modelId, editing, draft, setEditing, setDraft, onSave, onCl
         const server = serverHasProvider(p);
         return (
           <div key={p} className="mb-1">
-            <div className="flex items-center justify-between px-2 pb-0.5 pt-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-faint">
+            <div className="flex items-center justify-between px-2 pt-1">
+              <span className="text-micro font-semibold uppercase tracking-wider text-faint">
                 {PROVIDER_LABEL[p]}
               </span>
+              {/* The two key affordances are 10px badges, but they are still buttons you tap on a
+                  phone — so they carry a 32px box below `sm` and shrink to badge height above it. */}
               <span className="flex items-center gap-1">
-                {server && <span className="text-[9px] text-good">server key</span>}
+                {server && <span className="text-micro text-good">server key</span>}
                 {byok && (
                   <button
                     onClick={() => onClear(p)}
                     title="Remove your key"
-                    className="flex items-center gap-0.5 text-[9px] text-accent hover:text-bad"
+                    className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-micro text-accent hover:bg-line hover:text-bad sm:h-6"
                   >
                     BYOK <X className="h-2.5 w-2.5" />
                   </button>
@@ -171,7 +180,7 @@ function ModelMenu({ modelId, editing, draft, setEditing, setDraft, onSave, onCl
                       setEditing(editing === p ? null : p);
                       setDraft(getKey(p) ?? "");
                     }}
-                    className="flex items-center gap-0.5 text-[9px] text-muted hover:text-accent"
+                    className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-micro text-muted hover:bg-line hover:text-accent sm:h-6"
                   >
                     <KeyRound className="h-2.5 w-2.5" /> connect
                   </button>
@@ -188,14 +197,13 @@ function ModelMenu({ modelId, editing, draft, setEditing, setDraft, onSave, onCl
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && onSave(p)}
                   placeholder={`Paste ${PROVIDER_LABEL[p]} API key`}
-                  className="num h-6 flex-1 rounded bg-panel-2 px-2 text-[10px] text-fg outline-none ring-1 ring-line focus:ring-accent/60"
+                  // 16px under a thumb, or mobile Safari zooms the viewport the moment this is
+                  // focused — and this field opens inside a centred modal, which the zoom breaks.
+                  className="num h-8 min-w-0 flex-1 rounded-lg bg-panel-2 px-2 text-title text-fg outline-none ring-1 ring-line focus:ring-accent/60 focus-visible:outline-none sm:h-7 sm:text-meta"
                 />
-                <button
-                  onClick={() => onSave(p)}
-                  className="rounded bg-accent px-2 py-1 text-[10px] text-accent-fg"
-                >
+                <Button variant="primary" onClick={() => onSave(p)}>
                   Save
-                </button>
+                </Button>
               </div>
             )}
 
@@ -241,17 +249,19 @@ function ModelRow({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-line"
+      // py-2.5 below `sm`: a single-line row lands at ~41px, so every model in the list is a
+      // real tap target inside the centred picker.
+      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-body transition-colors hover:bg-line sm:py-1.5"
     >
-      <span className="flex-1">
-        <span className={`block font-medium ${available ? "text-fg" : "text-faint"}`}>{label}</span>
-        {hint && <span className="block text-[9px] text-faint">{hint}</span>}
-        {!available && !hint && <span className="block text-[9px] text-faint">needs API key</span>}
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate font-medium ${available ? "text-fg" : "text-faint"}`}>{label}</span>
+        {hint && <span className="block text-micro text-faint">{hint}</span>}
+        {!available && !hint && <span className="block text-micro text-faint">needs API key</span>}
       </span>
       {selected ? (
-        <Check className="h-3.5 w-3.5 text-accent" />
+        <Check className="h-3.5 w-3.5 flex-shrink-0 text-accent" />
       ) : !available ? (
-        <Lock className="h-3 w-3 text-faint" />
+        <Lock className="h-3 w-3 flex-shrink-0 text-faint" />
       ) : null}
     </button>
   );

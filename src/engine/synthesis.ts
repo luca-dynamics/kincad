@@ -13,6 +13,7 @@
 // All outputs feed straight back into the analysis solver so a synthesised linkage can be
 // animated and checked immediately.
 
+import { solvePosition } from "./fourbar";
 import type { FourBarLinkage, Vec2 } from "./types";
 import { dist, sub } from "./vector";
 
@@ -31,6 +32,26 @@ export interface FunctionGenResult {
   K: [number, number, number];
   feasible: boolean;
   notes: string;
+  /**
+   * Datum rotation (rad, 0 or π) to ADD to the prescribed angles before the synthesised
+   * linkage reproduces them.
+   *
+   * Freudenstein gives K1 = d/a and K2 = d/c, so a negative K means that link is directed
+   * OPPOSITE to the assumed datum — length |a|, angle measured from θ₂ + 180°. A physical link
+   * cannot have negative length, so the sign is carried here rather than dropped: this used to
+   * be `Math.abs(a)` with nothing recorded, which handed back a linkage that missed every
+   * precision point (θ₄ = 74.49° where 50° was asked for) while reporting success.
+   */
+  inputOffset: number;
+  outputOffset: number;
+}
+
+/** True when two angles are the same direction, ignoring full turns. */
+function sameAngle(x: number, y: number, tol = 1e-7): boolean {
+  const TAU = 2 * Math.PI;
+  let d = Math.abs(x - y) % TAU;
+  if (d > Math.PI) d = TAU - d;
+  return d < tol;
 }
 
 /**
@@ -67,6 +88,8 @@ export function synthesizeFunctionGenerator(
       K: [NaN, NaN, NaN],
       feasible: false,
       notes: "Precision points are singular (degenerate system); choose different angles.",
+      inputOffset: 0,
+      outputOffset: 0,
     };
   }
   const [K1, K2, K3] = K;
@@ -75,34 +98,86 @@ export function synthesizeFunctionGenerator(
   const a = d / K1; // input
   const c = d / K2; // output
   const b2 = a * a + c * c + d * d - 2 * a * c * K3; // from K3 definition, solved for b^2
-  if (!isFinite(a) || !isFinite(c) || b2 <= 0 || a <= 0 || c <= 0) {
+  if (!isFinite(a) || !isFinite(c) || !isFinite(b2) || b2 <= 0) {
     return {
       link: null,
       K: [K1, K2, K3],
       feasible: false,
       notes:
-        "Solved coefficients give a non-physical linkage (negative length). Try different precision points or ground length.",
+        "Solved coefficients give no real coupler length (b² ≤ 0). Try different precision " +
+        "points or ground length.",
+      inputOffset: 0,
+      outputOffset: 0,
     };
   }
   const b = Math.sqrt(b2);
 
-  const link: FourBarLinkage = {
+  // A negative ratio does NOT mean the design is impossible. K1 = d/a and K2 = d/c, so K1 < 0
+  // means the input link is directed OPPOSITE to the assumed datum: length |a|, measured from
+  // theta2 + 180 deg. The linkage is perfectly buildable; only the datum moves. Rejecting these
+  // outright (the old `a <= 0 || c <= 0` guard) refused most ordinary specs as "non-physical",
+  // and taking Math.abs() without recording the flip silently moved the datum instead.
+  const inputOffset = a < 0 ? Math.PI : 0;
+  const outputOffset = c < 0 ? Math.PI : 0;
+
+  const base = {
     ground: d,
     input: Math.abs(a),
     coupler: b,
     output: Math.abs(c),
     couplerPointDist: b / 2,
     couplerPointAngle: 0,
-    circuit: "open",
   };
+
+  // Both roots of the position quadratic (Norton Eq. 4.10) satisfy Freudenstein's equation, so
+  // the circuit that actually threads the precision points must be TESTED, not assumed. It was
+  // hardcoded "open"; for many valid solutions the crossed branch is the one that fits.
+  let link: FourBarLinkage | null = null;
+  for (const circuit of ["open", "crossed"] as const) {
+    const candidate: FourBarLinkage = { ...base, circuit };
+    const threadsAll = input.theta2.every((t2, i) => {
+      const pos = solvePosition(candidate, t2 + inputOffset);
+      return !!pos && sameAngle(pos.theta4, input.theta4[i] + outputOffset, 1e-6);
+    });
+    if (threadsAll) {
+      link = candidate;
+      break;
+    }
+  }
+
+  if (!link) {
+    return {
+      link: null,
+      K: [K1, K2, K3],
+      feasible: false,
+      notes:
+        "Link lengths were recovered, but neither assembly circuit reaches all three precision " +
+        "points (the linkage cannot be assembled at one of them). Try different precision " +
+        "points or ground length.",
+      inputOffset,
+      outputOffset,
+    };
+  }
+
+  const flips: string[] = [];
+  if (inputOffset !== 0) flips.push("input crank");
+  if (outputOffset !== 0) flips.push("output rocker");
+  const offsetNote = flips.length
+    ? ` The ${flips.join(" and ")} ${flips.length > 1 ? "datums are" : "datum is"} rotated 180°, ` +
+      "so the prescribed correspondence occurs at θ₂ + 180° (a negative Freudenstein ratio means " +
+      "the link points the other way; its length is positive)."
+    : "";
 
   return {
     link,
     K: [K1, K2, K3],
     feasible: true,
     notes:
-      "Function generator synthesised from 3 precision points via Freudenstein's equation. " +
-      "Verify by analysis: the output should pass through the three target angles.",
+      "Function generator synthesised from 3 precision points via Freudenstein's equation, on " +
+      `the ${link.circuit} circuit — verified by analysis to pass through all three target ` +
+      `angles to within 1e-6 rad.${offsetNote}`,
+    inputOffset,
+    outputOffset,
   };
 }
 

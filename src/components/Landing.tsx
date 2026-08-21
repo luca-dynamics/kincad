@@ -33,11 +33,13 @@ export function Landing({
           <LogoMark size={48} />
         </div>
 
-        <h1 className="mb-2 text-center text-[1.75rem] font-semibold tracking-tight text-fg">
+        {/* 28px plus a first name wraps to three lines on a 375px phone, which pushes the composer
+            below the fold — the one thing this screen exists to put in front of you. */}
+        <h1 className="mb-2 text-center text-title font-semibold tracking-tight text-fg sm:text-display">
           {greeting}{who} — let's analyze a mechanism
         </h1>
 
-        <p className="mb-8 text-center text-[13px] leading-relaxed text-muted">
+        <p className="mb-8 text-center text-body text-muted">
           A kinematics agent for planar mechanisms. Describe a linkage, ask an engineering
           question, or open one from the sidebar. Every number comes from the deterministic solver.
         </p>
@@ -57,8 +59,11 @@ export function Landing({
             <button
               key={p}
               onClick={() => onSend(p)}
-              className="rounded-full px-3 py-1.5 text-[12px] text-muted ring-1 ring-line
-                         transition-colors hover:text-accent hover:ring-accent/50"
+              // A pill radius only reads as a pill on one line, and these prompts take two at
+              // 375px. 16px is indistinguishable from a pill at this height and survives the wrap.
+              className="rounded-2xl px-3.5 py-2.5 text-meta text-muted ring-1 ring-line
+                         transition-colors hover:text-accent hover:ring-accent/50
+                         sm:rounded-full sm:py-1.5"
             >
               {p}
             </button>

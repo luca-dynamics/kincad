@@ -12,6 +12,7 @@ import {
   type SliderCrankLinkage,
 } from "../src/engine/index.ts";
 import { validateCadNode, type CadModel, type CadNode } from "../src/cad/types.ts";
+import { DEFAULT_UNIT, UNIT_NAME, perSec, perSec2, type LengthUnit } from "../src/units.ts";
 import { generateImage } from "./imageGen.ts";
 
 export type MechanismKind = "fourbar" | "slidercrank";
@@ -20,6 +21,20 @@ export interface WorkingState {
   kind: MechanismKind;
   fourbar: FourBarLinkage;
   slider: SliderCrankLinkage;
+  /**
+   * Input speed in rad/s, forwarded from the client's workspace. The `analyze` tool sweeps at this
+   * speed so the velocities and accelerations the model quotes are the ones the user is looking at
+   * — the engine's own default is a unit-rate 1 rad/s, which would silently understate ω₄ by the
+   * speed factor and α₄ by its square.
+   */
+  omega2: number;
+  /**
+   * The length unit the client's workspace DECLARES its dimensions in. A label, not a scale factor:
+   * the geometry arrives unitless and the solver is scale-free, so nothing here converts anything —
+   * it exists so the model quotes the user's unit instead of inventing one, and so a mechanism
+   * declared in inches is not described in millimetres. See src/units.ts.
+   */
+  unit: LengthUnit;
 }
 
 // Mirrors the client's WorkspaceAction union so the UI can apply what the agent did.
@@ -49,9 +64,13 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "set_fourbar",
+    // No unit named here on purpose: this list is static, and the workspace's unit is chosen at
+    // runtime. Naming "mm" in a schema the model reads every turn would contradict the declaration
+    // in the system prompt the moment the user switches to inches. Lengths cross this boundary as
+    // bare numbers, exactly as the scale-free solver takes them.
     description:
-      "Set one or more four-bar link dimensions. Units are arbitrary length units (treat as mm). " +
-      "Only include the fields you want to change.",
+      "Set one or more four-bar link dimensions, as plain numbers in the workspace's declared " +
+      "length unit (stated in the system prompt). Only include the fields you want to change.",
     parameters: {
       type: "object",
       properties: {
@@ -90,7 +109,10 @@ export const TOOLS: ToolSpec[] = [
     description:
       "Four-bar function-generation synthesis via Freudenstein's equation. Provide three input crank " +
       "angles and three desired output rocker angles (degrees). Returns the synthesised link lengths " +
-      "(and sets them as the active four-bar if feasible).",
+      "(and sets them as the active four-bar if feasible). The result reports the assembly circuit " +
+      "the solution lies on, and inputDatumOffsetDeg / outputDatumOffsetDeg — a 180° offset means " +
+      "that link points opposite the assumed datum, so the prescribed correspondence occurs at the " +
+      "angles listed in precisionPoints. Always quote precisionPoints, not the requested angles.",
     parameters: {
       type: "object",
       properties: {
@@ -192,8 +214,8 @@ export async function executeTool(
     case "analyze": {
       const report =
         state.kind === "fourbar"
-          ? buildFourBarReport(state.fourbar, 360)
-          : buildSliderCrankReport(state.slider, 360);
+          ? buildFourBarReport(state.fourbar, 360, state.omega2)
+          : buildSliderCrankReport(state.slider, 360, state.omega2);
       return { result: report, action: { type: "run_analysis" } };
     }
     case "synthesize_function_generator": {
@@ -204,8 +226,23 @@ export async function executeTool(
       if (res.feasible && res.link) {
         state.fourbar = res.link;
         state.kind = "fourbar";
+        // A negative Freudenstein ratio flips a link's datum by 180 deg. Report the flip and the
+        // correspondence the linkage actually realises, so the angles quoted to the user are the
+        // ones the workspace will show rather than the ones that were asked for.
+        const deg = (r: number) => +((r * 180) / Math.PI).toFixed(4);
+        const wrap360 = (r: number) => deg(((r % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
         return {
-          result: { feasible: true, link: res.link, notes: res.notes },
+          result: {
+            feasible: true,
+            link: res.link,
+            notes: res.notes,
+            inputDatumOffsetDeg: deg(res.inputOffset),
+            outputDatumOffsetDeg: deg(res.outputOffset),
+            precisionPoints: t2.map((a, i) => ({
+              theta2Deg: wrap360(a + res.inputOffset),
+              theta4Deg: wrap360(t4[i] + res.outputOffset),
+            })),
+          },
           action: { type: "set_fourbar", params: res.link },
         };
       }
@@ -273,6 +310,19 @@ Your role:
 
 When the user describes a mechanism, set it up with the tools, analyse it, then summarise the key results and any warnings. When they ask a conceptual question, answer directly (tools optional).
 
+## Formatting your replies
+The chat renders GitHub-flavoured markdown and LaTeX (KaTeX). Use it — this section governs SHAPE only and never relaxes "GROUND EVERY NUMBER IN THE SOLVER" above.
+- Open with one plain sentence that answers the question. Structure comes after it, not before.
+- Put solver figures in a markdown list or table with a bold label: "- **Transmission angle** — 43.2°–136.8° (mean 90.0°)". Never bury a run of numbers inside sentences.
+- Standalone equations go in display math, with the '$$' delimiters on their OWN lines. A one-line '$$…$$' is parsed as INLINE math instead, so it is neither centred nor scrollable when wide:
+$$
+M = 3(n - 1) - 2j_1 - j_2
+$$
+- Symbols inside a sentence take single dollars: $\\mu$, $\\theta_2$, $\\omega_4$.
+- Use '##' headings only when a reply is long enough to need sections. Keep paragraphs to 2–3 sentences.
+- Bold the quantity, not the whole sentence. Use a table when you are comparing two or more designs.
+- No code fences unless the content really is code or JSON.
+
 ## Generating 3D CAD (freeform)
 When the user asks for a 3D part that is NOT a four-bar/slider-crank mechanism (bracket, plate, flange, gear blank, enclosure, spacer, etc.), build it with the 'generate_cad' tool. Pass a 'name' and a 'spec' that is a JSON STRING for a tree of solids. Node types:
 - {"type":"box","size":[x,y,z]}
@@ -301,13 +351,60 @@ After generating, briefly describe the part and its key dimensions, and note the
 ## Generating images
 When the user asks for a visual, diagram, or image (e.g. "show me what a rack-and-pinion looks like", "draw a flange"), call the 'generate_image' tool with a detailed prompt. The image is rendered by Gemini Nano Banana or DALL-E 3 and displayed in the chat. Write a detailed, vivid prompt — include shape, materials, style, and perspective. After the image appears, briefly describe what was generated.`;
 
-/** Build the system prompt, optionally personalised with the user's name. */
-export function buildSystemPrompt(user?: { name?: string }): string {
+/**
+ * When the workspace is gated, the model's changes are only ever *offers* — so the base prompt's
+ * "DRIVE THE WORKSPACE" framing would have it announce edits that have not happened. Appended
+ * only in that mode, so the prompt is never false in the other one.
+ */
+const APPROVAL_PROMPT = `## Changes need the user's approval
+Tool calls that change the workspace (set_mechanism, set_fourbar, set_slidercrank, synthesize_function_generator, generate_cad) are shown to the user as a PROPOSAL they must Apply or Discard. They are NOT live until then.
+- Phrase them as proposals: "setting r₃ = 4.5 would give…", not "I've set r₃ = 4.5".
+- Still call 'analyze' — its figures are real engine output for the proposed geometry. Attribute them that way: "with these dimensions the transmission angle stays within 43–137°".
+- Close with a short invitation to decide ("apply it and I'll re-check the full cycle").
+- The state you read through the tools at the start of a turn IS the live workspace. If a change you made earlier is absent from it, the user discarded it — acknowledge that briefly and move on. Never assume a change took effect.`;
+
+/**
+ * Build the system prompt: the base, plus whichever situational sections apply.
+ *
+ * The approval section goes LAST, after personalisation — it constrains how every reply is
+ * phrased, so it earns the most-recently-read position; personalisation is only tone.
+ *
+ * `unit` is optional and falls back to the workspace default, because a caller with no live
+ * workspace (a prompt built for a bare conversation) has no unit to declare — but a wrong unit is
+ * worse than a defaulted one, so the live path always passes it.
+ */
+export function buildSystemPrompt({
+  user,
+  approvalRequired,
+  unit = DEFAULT_UNIT,
+}: {
+  user?: { name?: string };
+  approvalRequired?: boolean;
+  unit?: LengthUnit;
+} = {}): string {
+  const parts = [BASE_PROMPT, unitPrompt(unit)];
   if (user?.name) {
-    return (
-      BASE_PROMPT +
-      `\n\n## Personalisation\nThe user's name is ${user.name}. Greet them by their first name on your first reply in a conversation, then keep it natural. Pitch explanations at a mechanical-engineering undergraduate and keep a supportive, mentor-like tone.`
+    parts.push(
+      `## Personalisation\nThe user's name is ${user.name}. Greet them by their first name on your first reply in a conversation, then keep it natural. Pitch explanations at a mechanical-engineering undergraduate and keep a supportive, mentor-like tone.`,
     );
   }
-  return BASE_PROMPT;
+  if (approvalRequired) parts.push(APPROVAL_PROMPT);
+  return parts.join("\n\n");
+}
+
+/**
+ * The unit declaration, built per turn because the user can change it mid-conversation.
+ *
+ * It states both halves deliberately: the unit to QUOTE, and the fact that the numbers crossing the
+ * tool boundary carry no unit at all. Without the second half a model that reads "the unit is in"
+ * has an obvious next move — convert to millimetres before calling `set_fourbar` — and that single
+ * unrequested rescale would move the mechanism on screen while looking, in the transcript, correct.
+ */
+function unitPrompt(unit: LengthUnit): string {
+  return `## Length unit
+The user has declared this workspace's length unit as ${UNIT_NAME[unit]} (${unit}). Every link dimension, stroke and slider position carries that unit; linear velocities are ${perSec(unit)} and accelerations ${perSec2(unit)}. Angles are always degrees in conversation and radians in the tools, whatever the length unit is.
+- QUOTE this unit, never a different one: "r₃ = 4.5 ${unit}". Do not convert to any other unit, and do not describe a length without its unit.
+- Dimensions cross the tool boundary as PLAIN NUMBERS in this unit — pass 4.5, not 4.5 ${unit} and not a converted value. The solver is scale-free (every angle, the Grashof classification and the transmission angle depend only on the ratios of the lengths), so a conversion would change the mechanism the user is looking at while appearing to preserve it.
+- If the user asks for a different unit, tell them the selector is above the dimensions in the Parameters panel, and that switching it relabels the numbers without rescaling the mechanism.
+- The 3D CAD parts from 'generate_cad' are the exception: those are millimetres always, independently of this declaration.`;
 }

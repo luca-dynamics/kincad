@@ -15,6 +15,7 @@ let serverProviders: Record<Provider, boolean> = {
   anthropic: false,
   openai: false,
   google: false,
+  agentrouter: false,
 };
 
 /** Fetch /api/health to learn which providers the server has keys for. */
@@ -22,8 +23,12 @@ export async function probeModels(): Promise<void> {
   try {
     const r = await fetch("/api/health", { headers: { Accept: "application/json" } });
     if (r.ok) {
-      const d = (await r.json()) as { service?: string; providers?: Record<Provider, boolean> };
-      if (d.service === "kincad-copilot" && d.providers) serverProviders = d.providers;
+      const d = (await r.json()) as { service?: string; providers?: Partial<Record<Provider, boolean>> };
+      // Merged, not assigned: a server bundled before a provider was added omits that key, and a
+      // wholesale assignment would leave `undefined` sitting behind a `boolean` type.
+      if (d.service === "kincad-copilot" && d.providers) {
+        serverProviders = { ...serverProviders, ...d.providers };
+      }
     }
   } catch {
     /* proxy not running — cloud models stay unavailable unless BYOK */

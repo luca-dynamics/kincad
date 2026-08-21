@@ -22,6 +22,28 @@ export interface PlotTheme {
   marker: string;
 }
 
+/**
+ * Plot box insets in CSS pixels. Exported because hit-testing has to agree with drawing: the scrub
+ * handler in components/Plots.tsx turns a pointer x into a cycle fraction with the same constant
+ * `drawPlot` lays the axes out from, so the marker cannot drift from the finger.
+ */
+export const PLOT_PAD = { l: 38, r: 8, t: 8, b: 20 } as const;
+
+/** Pointer slack outside the plot box, in CSS pixels — a touch just off the axis still scrubs. */
+const GRAB = 6;
+
+/**
+ * Where a pointer at CSS-pixel `px` falls in the x domain of a plot `w` wide: 0 at θ₂ = 0°, 1 at
+ * 360°. Within `GRAB` of either end the result clamps; beyond that it is `null`, so a drag that
+ * leaves the axes stops scrubbing instead of pinning the mechanism to an edge.
+ */
+export function fractionAtX(px: number, w: number): number | null {
+  const plotW = w - PLOT_PAD.l - PLOT_PAD.r;
+  if (plotW <= 0) return null;
+  if (px < PLOT_PAD.l - GRAB || px > PLOT_PAD.l + plotW + GRAB) return null;
+  return Math.max(0, Math.min(1, (px - PLOT_PAD.l) / plotW));
+}
+
 export function drawPlot(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -34,10 +56,10 @@ export function drawPlot(
   const TEXT = theme.text;
   const GRID = theme.grid;
   ctx.clearRect(0, 0, w, h);
-  const padL = 38,
-    padR = 8,
-    padT = 8,
-    padB = 20;
+  const padL = PLOT_PAD.l,
+    padR = PLOT_PAD.r,
+    padT = PLOT_PAD.t,
+    padB = PLOT_PAD.b;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
 

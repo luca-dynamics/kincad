@@ -34,3 +34,13 @@ export const wrap2Pi = (a: number): number => {
   const x = a % (2 * Math.PI);
   return x < 0 ? x + 2 * Math.PI : x;
 };
+
+/**
+ * An angle in degrees on [0, 360) — the form every joint angle is REPORTED in.
+ *
+ * The solvers return raw `atan2` results, so a coupler angle can come back as −327.99 rad→deg. The
+ * results panel wrapped it to 32.01°; the PDF printed the raw −327.99°. Same angle, and a reader
+ * comparing the sheet against the screen has no way to know that — which is exactly the "the report
+ * doesn't tally with the parameters" complaint. One function, so screen and print cannot drift.
+ */
+export const degWrapped = (rad: number): number => toDeg(wrap2Pi(rad));

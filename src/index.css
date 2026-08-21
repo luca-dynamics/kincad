@@ -6,84 +6,162 @@
 
 /* ── KINCAD design system ────────────────────────────────────────────────────
    Clean, professional CAD aesthetic — flat surfaces, no gradients, no glow.
-   Semantic CSS variables flip between light (warm cream) and dark (neutral
-   near-black); Tailwind maps to them via @theme inline.                      */
+   Semantic CSS variables flip between light (Claude cream) and dark
+   (near-black chrome); Tailwind maps to them via @theme inline. The violet
+   accent is shared by both themes and is deliberately the ONE hue either
+   palette adds.
+
+   Both palettes are built around SURFACE SEPARATION rather than hue: shell →
+   dock → card is a visible step at each stage, in opposite directions per
+   theme (light lifts as it comes forward, dark deepens as it goes back). An
+   earlier pass tuned hue alone and moved surfaces by 2–5 RGB points, which a
+   screen does not resolve — the interface read as one flat sheet held
+   together by a hairline. Keep the steps when editing these blocks.
+
+   Metrics are tokenised the same way colours are: the type scale and the three
+   elevation levels below are the ONLY sizes and shadows the interface uses. An
+   arbitrary `text-[13px]` or `shadow-xl` in a component is a bug — it is a size
+   nobody else can match and nobody can change centrally. Radii use Tailwind's
+   own named steps (md 6 · lg 8 · xl 12 · 2xl 16), so there is nothing to define
+   here: controls take `rounded-lg`, cards `rounded-xl`, overlays `rounded-2xl`. */
 
 :root {
-  /* ── surfaces — warm cream (light mode) ─────────────────────── */
-  --bg:        #f2eee2;
-  --panel:     #eae5d7;
-  --panel-2:   #faf8f1;
-  --elevated:  #faf8f1;
-  --line:       rgba(60, 48, 20, 0.12);
-  --line-strong:rgba(60, 48, 20, 0.20);
+  /* ── surfaces — Claude cream (light mode) ────────────────────────
+     Anthropic's published ivory for the shell and claude.ai's cream for
+     content, verbatim. An earlier pass deepened the shell to #ede9dd
+     chasing surface separation and drained the cream out of it — at
+     L* 92 a warm tint reads as oatmeal, not cream. Cream has to be
+     LUMINOUS; the separation comes from the steps instead, which are
+     now wider than the deep-cream version managed anyway:
+     shell→dock 1.097, dock→card 1.210 (the palette this replaces held
+     panel-against-shell at 1.08, which is no separation at all).     */
+  --bg:        #f0eee6;   /* app shell — Anthropic ivory */
+  --panel:     #e7e4d7;   /* sidebar / docks — deeper than the shell */
+  --panel-2:   #faf9f5;   /* inputs, raised cards, drawing surface */
+  --elevated:  #faf9f5;   /* popovers, modals, segmented-control track */
+  /* Warm-neutral, not gold. Eased back from 0.15 because a lighter
+     surface renders the same alpha as a heavier line — this holds the
+     hairline at the weight the deeper cream needed 0.15 to reach. */
+  --line:       rgba(41, 37, 28, 0.14);
+  --line-strong:rgba(41, 37, 28, 0.21);
 
-  /* ── text ───────────────────────────────────────────────────── */
-  --fg:    #1f1c14;
-  --muted: #635e52;
-  --faint: #948e7a;
+  /* ── text ───────────────────────────────────────────────────────
+     --faint is darker than it looks like it needs to be: at 10px
+     (eyebrows, plot legends, timestamps) it is the weakest text in the
+     app, and on the dock it only clears 3.18 even at this value.     */
+  --fg:    #1f1e1d;
+  --muted: #605e57;
+  --faint: #837e71;
 
   /* ── accent ─────────────────────────────────────────────────── */
   --accent:    #7c3aed;
   --accent-fg: #ffffff;
+  /* Focus-ring tint — used by ui.tsx ParamRow and Sidebar.tsx. */
+  --accent-glow: rgba(124, 58, 237, 0.18);
 
   /* ── status ─────────────────────────────────────────────────── */
   --good: #1e7a4b;
   --warn: #a36309;
   --bad:  #b83b28;
 
-  /* ── canvas ─────────────────────────────────────────────────── */
-  --canvas-bg:    #f6f3ea;
-  --canvas-grid:  #e7e1d1;
-  --canvas-axis:  #d5cdba;
-  --c-ground:     #8f897a;
+  /* ── canvas ─────────────────────────────────────────────────────
+     r₂ tracks --accent by definition (the input link is the accent's
+     one load-bearing use on the drawing). The drawing surface is the
+     same cream as a card, so the linkage sits on paper inside an ivory
+     frame. Grid and axis are re-tuned to the lighter surface to hold
+     the ratios they had on the deep cream (grid 1.195, axis 1.478) —
+     left alone they would have flattened into it. r₄ stays deepened
+     from #b8770f: telling the rocker from the coupler is engineering
+     signal, not decoration, and #a8690b buys 4.25 against 3.51.     */
+  --canvas-bg:    #faf9f5;
+  --canvas-grid:  #e9e5d9;
+  --canvas-axis:  #d4cfc0;
+  --c-ground:     #8c887c;
   --c-link2:      #7c3aed;
-  --c-link3:      #6f7787;
-  --c-link4:      #c47e12;
-  --c-joint:      #1f1c14;
-  --c-coupler-pt: #cf3f93;
-  --c-curve:      #cf3f93;
-  --c-plot-grid:  #e8e2d3;
+  --c-link3:      #616b7e;
+  --c-link4:      #a8690b;
+  --c-joint:      #1f1e1d;
+  --c-coupler-pt: #c4368a;
+  --c-curve:      #c4368a;
+  /* The plots sit on the SHELL, not on the drawing surface, so this
+     tracks --bg rather than --canvas-bg — 1.19 under the ivory, the
+     same weight as the grid under the canvas. */
+  --c-plot-grid:  #e0dbcc;
 
-  --radius: 0.5rem;
+  /* ── elevation ──────────────────────────────────────────────────
+     Floating layers only — popovers, dropdowns, modals. Panels stay
+     flat, which is the aesthetic this file commits to above. Kept as
+     raw vars (not inlined into @theme) so the dark theme can deepen
+     them: the same alpha that reads as a soft lift on cream looks
+     like nothing at all on near-black.                             */
+  --elev-0: 0 1px 2px rgba(41, 37, 28, 0.10);
+  --elev-1: 0 4px 16px -4px rgba(41, 37, 28, 0.14), 0 1px 3px rgba(41, 37, 28, 0.07);
+  --elev-2: 0 12px 32px -8px rgba(41, 37, 28, 0.20), 0 2px 6px rgba(41, 37, 28, 0.09);
+  --elev-3: 0 24px 64px -12px rgba(41, 37, 28, 0.28), 0 4px 12px rgba(41, 37, 28, 0.12);
+
   color-scheme: light;
 }
 
 .dark {
-  /* ── surfaces — clean neutral dark (CADAM / shadcn new-york) ── */
-  --bg:        #0f0f0f;   /* near-black, no tint */
-  --panel:     #1a1a1a;   /* sidebar / nav panels */
-  --panel-2:   #242424;   /* inputs, raised cards */
-  --elevated:  #0a0a0a;   /* deepest — canvas bg */
-  --line:       rgba(255, 255, 255, 0.08);
-  --line-strong:rgba(255, 255, 255, 0.14);
+  /* ── surfaces — near-black chrome (dark mode) ─────────────────────
+     Deeper than the palette this replaced, and the separation comes
+     from lifting what sits ON the chrome rather than from lifting the
+     chrome itself: docks a step above the shell, inputs and cards a
+     clear step above the docks. The drawing surface goes to pure black
+     so it is unambiguously the deepest plane in the app.             */
+  --bg:        #0d0d0d;   /* app shell */
+  --panel:     #151515;   /* sidebar / docks */
+  --panel-2:   #1f1f1f;   /* inputs, raised cards */
+  --elevated:  #0d0d0d;   /* recessed — segmented-control track */
+  /* 9% white over the #151515 docks resolves to ~#2a2a2a. Raised from
+     7% because the surface underneath it is darker now. */
+  --line:       rgba(255, 255, 255, 0.09);
+  --line-strong:rgba(255, 255, 255, 0.16);
 
-  /* ── text ───────────────────────────────────────────────────── */
-  --fg:    #fafafa;
-  --muted: #a1a1a1;
-  --faint: #636363;
+  /* ── text ───────────────────────────────────────────────────────
+     #ededed, not near-white: enough to hold 15.6 on the docks without
+     the glare that near-black chrome is trying to avoid, and it keeps
+     the step down to --muted that the hierarchy depends on.          */
+  --fg:    #ededed;
+  --muted: #9b9b9b;
+  --faint: #6a6a6a;
 
   /* ── accent ─────────────────────────────────────────────────── */
   --accent:    #a78bfa;
   --accent-fg: #0d0d0d;
+  --accent-glow: rgba(167, 139, 250, 0.22);
 
   /* ── status ─────────────────────────────────────────────────── */
   --good: #4ade80;
   --warn: #fbbf24;
   --bad:  #f87171;
 
-  /* ── canvas ─────────────────────────────────────────────────── */
-  --canvas-bg:    #0a0a0a;
+  /* ── canvas ─────────────────────────────────────────────────────
+     Every link colour GAINS contrast on pure black, so the four hues
+     only get further apart. The grid and axis are the exception and
+     the one thing a black canvas genuinely threatens: both are lifted
+     so they clear their previous ratios (grid 1.16 → 1.21, axis
+     1.41 → 1.55) instead of being crushed into the background.       */
+  --canvas-bg:    #000000;
   --canvas-grid:  #1a1a1a;
-  --canvas-axis:  #2a2a2a;
-  --c-ground:     #52576a;
+  --canvas-axis:  #2e2e2e;
+  --c-ground:     #57595c;
   --c-link2:      #a78bfa;
-  --c-link3:      #8896ae;
-  --c-link4:      #fbbf24;
-  --c-joint:      #e5e5e5;
-  --c-coupler-pt: #e879c0;
-  --c-curve:      #e879c0;
-  --c-plot-grid:  #1a1a1a;
+  --c-link3:      #89909c;
+  --c-link4:      #e5a933;
+  --c-joint:      #ededed;
+  --c-coupler-pt: #e072b8;
+  --c-curve:      #e072b8;
+  /* Tracks --bg (the plots sit on the shell), not the black canvas. */
+  --c-plot-grid:  #1f1f1f;
+
+  /* Deeper and wider than the light theme: a shadow on near-black has to
+     do the separating work that a border tint does on cream. */
+  --elev-0: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --elev-1: 0 4px 16px -4px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.34);
+  --elev-2: 0 12px 32px -8px rgba(0, 0, 0, 0.62), 0 2px 6px rgba(0, 0, 0, 0.40);
+  --elev-3: 0 24px 64px -12px rgba(0, 0, 0, 0.74), 0 4px 12px rgba(0, 0, 0, 0.48);
+
   color-scheme: dark;
 }
 
@@ -104,6 +182,34 @@
   --color-bad:         var(--bad);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* ── type scale ───────────────────────────────────────────────────────────
+     Seven steps, each with a paired line-height. Every size in the interface
+     comes from here; an arbitrary `text-[Npx]` anywhere is a bug.
+
+     Deliberately NOT named xs/sm/base/lg/xl — those are Tailwind's own and
+     were already in use, so reusing the names would silently redefine live
+     classes. New names make every call site grep-visible instead.           */
+  --text-micro:   0.625rem;  /* 10px — section eyebrows, plot legends, timestamps */
+  --text-micro--line-height:   1.4;
+  --text-mini:    0.6875rem; /* 11px — chips, captions, units, step detail       */
+  --text-mini--line-height:    1.45;
+  --text-meta:    0.75rem;   /* 12px — parameter labels, numeric readouts        */
+  --text-meta--line-height:    1.4;
+  --text-body:    0.8125rem; /* 13px — chat prose, buttons, inputs               */
+  --text-body--line-height:    1.6;
+  --text-head:    0.875rem;  /* 14px — dock headers, brand                       */
+  --text-head--line-height:    1.3;
+  --text-title:   1rem;      /* 16px — modal headings, and inputs on a phone     */
+  --text-title--line-height:   1.35;
+  --text-display: 1.75rem;   /* 28px — the Landing greeting                      */
+  --text-display--line-height: 1.2;
+
+  /* ── elevation ─────────────────────────────────────────────────────────── */
+  --shadow-raise: var(--elev-0);  /* raised within a track — segmented toggle thumb */
+  --shadow-pop:   var(--elev-1);  /* attached popovers, hover lift */
+  --shadow-menu:  var(--elev-2);  /* dropdowns, context menus      */
+  --shadow-modal: var(--elev-3);  /* full overlays                 */
 }
 
 /* ── base ─────────────────────────────────────────────────────────────────── */
@@ -127,15 +233,98 @@ body {
   font-feature-settings: "tnum";
 }
 
-/* ── glass surfaces ───────────────────────────────────────────────────────── */
+/* ── agent prose ──────────────────────────────────────────────────────────────
+   The hook on chat/Markdown.tsx's wrapper. It carried nothing until now — the
+   class was on the element and matched no rule anywhere in the repo — and these
+   are exactly the cases its component map cannot reach: markup KaTeX and
+   remark-gfm generate for themselves, and the descendant combinators a per-node
+   override has no way to express.
+
+   Unlayered on purpose, same reasoning as `.glass` below: unlayered CSS beats
+   `@layer utilities` whatever the specificity, which is what lets the nested-list
+   rule win against the `my-2.5` the `ul` override sets on every list.           */
+
+/* KaTeX ships `.katex-display{display:block;margin:1em 0}` with
+   `>.katex{white-space:nowrap}` and NO overflow rule, and the assistant bubble is
+   a `Card` — `overflow-hidden`. So a display equation wider than the panel was
+   CLIPPED rather than scrollable, which in a kinematics app is the one kind of
+   content most likely to be long. `pre` and `table` guard themselves; math can't. */
+.kc-md .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-block: 0.9rem;
+  padding-block: 0.15rem;
+}
+/* KaTeX's own 1.21em is set for a serif body; beside 13px sans it shouts. */
+.kc-md .katex { font-size: 1.05em; }
+
+/* A nested list inherits the `my-2.5` of its parent's override, which opens 10px
+   inside the `li` that owns it. Tighten it to the sub-item rhythm instead. */
+.kc-md li > ul,
+.kc-md li > ol { margin-block: 0.25rem; }
+
+/* GFM task lists arrive as an `<li>` holding a disabled checkbox, and still take
+   the `list-disc` marker — a bullet and a box saying the same thing.
+
+   Two shapes, because CommonMark list tightness changes the markup: a TIGHT list
+   gives `li > input`, but one blank line anywhere in the list makes it LOOSE and
+   every item's content gets wrapped, giving `li > p > input`. A model writing a
+   checklist hits either one. Both are spelled out rather than using a descendant
+   `:has(input)`, which would also strip the marker from a parent `li` that merely
+   contains a nested task list. */
+.kc-md li:has(> input[type="checkbox"]),
+.kc-md li:has(> p > input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.05rem;
+}
+.kc-md input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin-right: 0.4rem;
+  vertical-align: -1px;
+}
+
+/* The `first:`/`last:` utilities only reach elements the component map renders.
+   A reply that opens on a display equation or a task list slips past them. */
+.kc-md > :first-child { margin-top: 0; }
+.kc-md > :last-child { margin-bottom: 0; }
+
+/* ── focus ────────────────────────────────────────────────────────────────
+   One visible ring for keyboard users, everywhere. `:focus-visible` (not
+   `:focus`) so a mouse press on a button doesn't leave a ring behind.
+   Controls with their own focus treatment — the parameter dock's numeric
+   input, which glows — opt out with `focus-visible:outline-none` rather
+   than drawing two rings.
+
+   `@layer base` is load-bearing, not tidiness. Unlayered CSS beats every
+   layered rule regardless of specificity, and Tailwind emits utilities into
+   `@layer utilities` — so unlayered, this rule would silently override the
+   `focus-visible:outline-none` opt-out and those inputs would draw both the
+   glow and this outline. Tailwind's layer order is
+   `theme, base, components, utilities`, so from `base` the opt-out wins.  */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ── glass surfaces ───────────────────────────────────────────────────────────
+   ELEVATION LIVES HERE, NOT ON THE ELEMENT. These rules are unlayered, so they
+   beat Tailwind's `@layer utilities` whatever the specificity — a `shadow-menu`
+   class on a `.glass` element is a silent no-op. So the drop shadow reads the
+   same `--elev-*` tokens the utilities do, which also makes it theme-aware: the
+   hardcoded `rgba(0,0,0,0.20)` it replaces was doing nothing on near-black.
+   `.glass-modal` is the same surface one step deeper, for the full overlays.   */
 .glass {
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid var(--line-strong);
-  box-shadow:
-    0 1px 0 rgba(255,255,255,0.06) inset,
-    0 12px 40px rgba(0,0,0,0.20);
+  /* The inset hairline is the glass sheen, not depth — it stays at either step. */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, var(--elev-2);
+}
+.glass-modal {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, var(--elev-3);
 }
 .glass-2 {
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
@@ -160,6 +349,35 @@ body {
 }
 .kc-pop { animation: kc-pop 0.18s ease-out; }
 
+/* Live-agent shimmer. Deliberately a sweep across the TEXT (background-clip) rather than a
+   glow or a gradient on a surface — signals "working" without breaking the flat CAD look. */
+@keyframes kc-shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: -100% 0; }
+}
+.kc-shimmer {
+  background-image: linear-gradient(100deg, var(--muted) 35%, var(--fg) 50%, var(--muted) 65%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: kc-shimmer 1.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Fall back to a plain static label — background-clip would otherwise leave it invisible. */
+  .kc-shimmer {
+    animation: none;
+    background-image: none;
+    color: var(--muted);
+  }
+  .kc-step, .kc-pop { animation: none; }
+  input[type="range"]::-webkit-slider-thumb,
+  input[type="range"]::-moz-range-thumb { transition: none; }
+  input[type="range"]:hover::-webkit-slider-thumb,
+  input[type="range"]:hover::-moz-range-thumb { transform: none; }
+}
+
 /* ── scrollbar ────────────────────────────────────────────────────────────── */
 *::-webkit-scrollbar       { width: 5px; height: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
@@ -168,30 +386,63 @@ body {
   border-radius: 4px;
 }
 
-/* ── range slider ─────────────────────────────────────────────────────────── */
+/* ── range slider ─────────────────────────────────────────────────────────
+   The most-dragged control in the app — θ₂ alone gets swept end to end on
+   every session — so it is built as a 20px transparent HIT AREA with a 3px
+   track painted on the pseudo-element, rather than a 3px element you have to
+   hit exactly. Padding cannot do this job: `height` here is a border box, so
+   `py-2` on a 3px input inflates the background into a 16px bar instead of
+   growing the target around a hairline track.                             */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 3px;
-  background: var(--line-strong);
-  border-radius: 3px;
+  height: 20px;
+  background: transparent;
   outline: none;
   cursor: pointer;
 }
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* track */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+input[type="range"]::-moz-range-track {
+  height: 3px;
+  background: var(--line-strong);
+  border-radius: 3px;
+}
+
+/* thumb — the negative margin centres a 14px circle on a 3px track */
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
+  transition: transform 0.1s ease-out;
+}
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border: none;
   border-radius: 50%;
   background: var(--accent);
   cursor: pointer;
+  transition: transform 0.1s ease-out;
+}
+input[type="range"]:hover::-moz-range-thumb {
+  transform: scale(1.15);
 }

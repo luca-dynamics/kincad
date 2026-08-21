@@ -25,7 +25,7 @@ export default function CadView({ model }: { model: CadModel }) {
   }, [model, theme]);
 
   if (!built) {
-    return <div className="grid h-full w-full place-items-center text-xs text-bad">Could not build this CAD model.</div>;
+    return <div className="grid h-full w-full place-items-center text-meta text-bad">Could not build this CAD model.</div>;
   }
 
   const { mesh, size, center } = built;
@@ -34,7 +34,9 @@ export default function CadView({ model }: { model: CadModel }) {
 
   return (
     <Canvas shadows camera={{ position: camPos, fov: 45 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
-      <color attach="background" args={[dark ? "#161717" : "#f6f3ea"]} />
+      {/* Mirrors the canvas tokens in index.css by hand — r3f cannot read CSS vars. Kept
+          identical to ThreeView's scene colours so switching 3D ↔ CAD does not change the room. */}
+      <color attach="background" args={[dark ? "#000000" : "#faf9f5"]} />
       <ambientLight intensity={dark ? 0.55 : 0.85} />
       <directionalLight position={[dist, dist * 1.4, dist]} intensity={1.1} castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-dist, dist * 0.5, -dist * 0.5]} intensity={0.35} />
@@ -47,8 +49,8 @@ export default function CadView({ model }: { model: CadModel }) {
         cellSize={Math.max(0.5, dist / 20)}
         cellThickness={0.5}
         sectionSize={Math.max(2, dist / 5)}
-        cellColor={dark ? "#2a2d2d" : "#dcd6c6"}
-        sectionColor={dark ? "#3a3f3f" : "#c8c1ad"}
+        cellColor={dark ? "#1f1f1f" : "#e9e5d9"}
+        sectionColor={dark ? "#2e2e2e" : "#d4cfc0"}
         fadeDistance={dist * 8}
         infiniteGrid
       />
@@ -56,9 +58,9 @@ export default function CadView({ model }: { model: CadModel }) {
       <OrbitControls target={[center.x, center.y, center.z]} enableDamping makeDefault />
       <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
         <GizmoViewcube
-          color={dark ? "#2d2d2d" : "#eae5d7"}
-          textColor={dark ? "#e5e5e5" : "#292720"}
-          strokeColor={dark ? "#5a5a5a" : "#b8b09a"}
+          color={dark ? "#1f1f1f" : "#e7e4d7"}
+          textColor={dark ? "#ededed" : "#1f1e1d"}
+          strokeColor={dark ? "#4a4a4a" : "#b3aea1"}
           hoverColor="#a78bfa"
         />
       </GizmoHelper>

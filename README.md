@@ -19,7 +19,7 @@
   &nbsp;
   <img src="https://img.shields.io/badge/three.js-black?style=flat-square&logo=three.js" alt="three.js" />
   &nbsp;
-  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square&logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/TypeScript-6-3178c6?style=flat-square&logo=typescript" alt="TypeScript" />
   &nbsp;
   <img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="MIT" />
 </p>
@@ -63,9 +63,9 @@ KINCAD is a browser-based CAD-style workspace that combines a **deterministic ki
 | **Synthesis** | Freudenstein function-generation (3 precision points) |
 | **Coupler curves** | Full-cycle tracing, visualised in 2D and 3D |
 | **Text-to-CAD** | Agent generates parametric 3D parts (primitives + boolean CSG via three-bvh-csg) |
-| **STL export** | Download generated CAD parts for 3D printing or further CAD work |
-| **PDF report** | Full analysis report with equations, results, and mechanism diagram |
-| **Multi-model AI** | Gemini · Claude · GPT via a key-safe proxy · BYOK · offline fallback |
+| **Mesh export** | STL (3D print) · OBJ (CAD import) · GLB (viewers) from the CAD view |
+| **PDF report** | Analysis report with equations, results and mechanism diagram · CAD part sheet |
+| **Multi-model AI** | Gemini · Claude · GPT direct, or via the AgentRouter gateway · key-safe proxy · BYOK · offline fallback |
 | **Voice chat** | Mic dictation into composer · read-aloud replies (Web Speech API) |
 
 ---
@@ -80,7 +80,7 @@ npm install
 # Optional — paste whichever API keys you have (BYOK also works in-app)
 cp .env.example .env
 
-npm run dev:full          # Vite frontend + AI proxy on http://localhost:5174
+npm run dev:full          # frontend on http://localhost:5173 · AI proxy on :8787
 ```
 
 Without any API keys the **Offline** mode and the full deterministic engine still work.
@@ -124,13 +124,13 @@ The AI **never** invents a kinematic result. It only drives the workspace parame
 - **[three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg)** — boolean CSG for text-to-CAD
 - **[react-markdown](https://github.com/remarkjs/react-markdown)** + KaTeX — rich chat rendering
 - **[Vitest](https://vitest.dev)** — unit tests for the kinematics engine
-- **Node.js + [ethers.js](https://docs.ethers.org)** serverless proxy (Vercel functions)
+- **Node.js + [Express](https://expressjs.com)** key-safe AI proxy — the same handler runs locally and as Vercel serverless functions
 
 ---
 
 ## Deployment
 
-See [DEPLOY.md](DEPLOY.md) for full Vercel setup. In short: connect the repo, set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `GOOGLE_API_KEY` as project environment variables, and deploy. The frontend is static; the AI proxy runs as serverless functions under `/api`.
+See [DEPLOY.md](DEPLOY.md) for full Vercel setup. In short: connect the repo, set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, and optionally `AGENTROUTER_API_KEY` as project environment variables, and deploy. The frontend is static; the AI proxy runs as serverless functions under `/api`.
 
 ---
 

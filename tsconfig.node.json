@@ -20,5 +20,13 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
+  // NOTE: `server/` and `shared/` are deliberately NOT included yet. Nothing under `src` imports
+  // the backend, so `tsc -b` currently never checks a line of it — the proxy, the tool loop and the
+  // provider adapters are validated only by esbuild, which does not type-check. Adding them here
+  // surfaces 11 real pre-existing errors (every `await res.json()` is `unknown` under current Node
+  // types, so `data.choices` / `data.content` are unchecked reads in all three adapters). Worth
+  // fixing, but it is its own change. In the meantime the runtime guards are the only check on the
+  // backend: server/__tests__/gateway.test.ts (provider dispatch and the request each one sends)
+  // and src/ai/__tests__/model-registry.test.ts (the registry those adapters are selected from).
   "include": ["vite.config.ts"]
 }

@@ -76,6 +76,38 @@ export function useSpeechRecognition(onTranscript: (text: string) => void) {
   return { supported, listening, start, stop };
 }
 
+/**
+ * Flatten a markdown reply into something a speech synthesiser reads naturally.
+ *
+ * ORDER MATTERS, and it is the whole reason this is a named function rather than a chain buried in
+ * `speak` — every rule below depends on the ones above it:
+ *
+ *  - **List markers before the symbol sweep.** That sweep takes the `*` off a `* item` bullet but
+ *    leaves the `-` of a `- item` standing, which is how "- **Input** — full 360° crank" came out
+ *    of the speaker as "dash Input full 360° crank".
+ *  - **Fences first of all**, before their backticks are stripped and the JSON inside gets read
+ *    out brace by brace.
+ *  - **Line breaks to full stops after the markers are gone.** A stripped bullet has no sentence
+ *    end of its own, so the final whitespace collapse would otherwise run every figure into the
+ *    next one in a single breath. The capture excludes whitespace as well as `.!?:;` — matching a
+ *    trailing space would insert a second, orphaned stop.
+ *
+ * Exported for its tests: the numbers the engine produces have to survive this untouched.
+ */
+export function speechText(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " (code block) ")  // don't read JSON aloud
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")     // links/images → their text, not the URL
+    .replace(/^[ \t]*(?:[-*+•]|\d+[.)])\s+/gm, "") // list markers, incl. the legacy • bullets
+    .replace(/\$\$?([^$]*)\$\$?/g, "$1")           // math delimiters
+    .replace(/[*_`#>|~^{}⚠]/g, "")                 // md symbols, LaTeX plumbing, warning glyph
+    .replace(/\\[a-zA-Z]+/g, "")                   // latex commands like \le, \circ
+    .replace(/([^\s.!?:;])[ \t]*\n+/g, "$1. ")     // one figure per sentence
+    .replace(/\s+—\s+/g, ", ")                     // "label — value" wants a comma's pause
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Read text aloud. Returns controls + which message id (if any) is currently speaking. */
 export function useSpeechSynthesis() {
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -90,13 +122,7 @@ export function useSpeechSynthesis() {
     (text: string, id: string) => {
       if (!supported) return;
       window.speechSynthesis.cancel();
-      // Strip markdown / LaTeX noise so it reads naturally.
-      const clean = text
-        .replace(/\$\$?([^$]*)\$\$?/g, "$1") // math delimiters
-        .replace(/[*_`#>|]/g, "")            // md symbols
-        .replace(/\\[a-zA-Z]+/g, "")          // latex commands like \le, \circ
-        .replace(/\s+/g, " ")
-        .trim();
+      const clean = speechText(text);
       if (!clean) return;
       const u = new SpeechSynthesisUtterance(clean);
       u.lang = "en-US";

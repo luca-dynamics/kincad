@@ -46,7 +46,21 @@ export class ProxyAgent implements AgentModel {
             ?.filter((a) => a.kind === "pdf" || a.kind === "document")
             .map((a) => ({ name: a.name, mime: a.mime, kind: a.kind, data: a.dataUrl ?? a.text ?? "" })),
         })),
-        context: { kind: ctx.kind, fourbar: ctx.fourbar, slider: ctx.slider, user: ctx.user },
+        context: {
+          kind: ctx.kind,
+          fourbar: ctx.fourbar,
+          slider: ctx.slider,
+          // The speed has to reach the server's `analyze` tool: ω₄ scales with ω₂ and α₄ with its
+          // square, so without it the model quotes figures the user's own screen contradicts.
+          omega2: ctx.omega2,
+          // And so does the declared length unit — the geometry above is unitless, so this is the
+          // only thing that stops the model naming a unit of its own choosing for it.
+          unit: ctx.unit,
+          user: ctx.user,
+          // The mode has to reach the prompt: whether a tool call is a change or a proposal
+          // decides how the reply should be worded.
+          approvalRequired: ctx.approvalRequired,
+        },
         apiKey: getKey(this.provider), // BYOK; undefined falls back to the server key
       }),
     });

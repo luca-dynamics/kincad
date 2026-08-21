@@ -32,7 +32,10 @@ export function Logo({ size = 24, className }: { size?: number; className?: stri
   return (
     <span className={`flex items-center gap-2 ${className ?? ""}`}>
       <LogoMark size={size} />
-      <span className="font-semibold tracking-tight text-fg" style={{ fontSize: size * 0.6 }}>
+      {/* `text-head`, not `size * 0.6`: the derived size put the wordmark at a fractional 13.2px —
+          the last untokenised font size in the app, and off the scale every label beside it uses.
+          14px is the dock-header step, which is what this sits in. */}
+      <span className="text-head font-semibold tracking-tight text-fg">
         KIN<span className="text-accent">CAD</span>
       </span>
     </span>

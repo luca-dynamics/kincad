@@ -3,6 +3,7 @@ import { ArrowUp, Paperclip, X, Mic, FileText } from "lucide-react";
 import mammoth from "mammoth";
 import { ModelSelect } from "./ModelSelect";
 import { useSpeechRecognition } from "../../hooks/useSpeech";
+import { IconButton } from "../ui";
 import type { Attachment } from "../../ai/types";
 
 const ACCEPT = [
@@ -103,28 +104,32 @@ export function Composer({
 
   const large = size === "large";
   return (
-    <div className="rounded-xl border border-line bg-panel-2 shadow-sm focus-within:border-accent/50">
+    <div className="rounded-xl border border-line bg-panel-2 shadow-raise focus-within:border-accent/50">
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 px-3 pt-3">
           {attachments.map((a) => (
             <div key={a.id} className="group relative">
               {a.kind === "image" && a.dataUrl ? (
-                <img src={a.dataUrl} alt={a.name} className="h-14 w-14 rounded-md object-cover ring-1 ring-line" />
+                <img src={a.dataUrl} alt={a.name} className="h-16 w-16 rounded-lg object-cover ring-1 ring-line" />
               ) : (
-                <div className="flex h-14 w-28 flex-col items-center justify-center gap-1 rounded-md bg-accent/10 px-2 ring-1 ring-line">
+                // h-16, not h-14: the name and kind labels are 11px and 10px now (they were 9px and
+                // 8px — the smallest type in the app), and the old tile could not hold them.
+                <div className="flex h-16 w-28 flex-col items-center justify-center gap-0.5 rounded-lg bg-accent/10 px-2 ring-1 ring-line">
                   <FileText className="h-5 w-5 text-accent" />
-                  <span className="max-w-full truncate text-center text-[9px] text-muted">{a.name}</span>
-                  <span className="text-[8px] uppercase tracking-wide text-faint">
+                  <span className="max-w-full truncate text-center text-mini text-muted">{a.name}</span>
+                  <span className="text-micro uppercase tracking-wide text-faint">
                     {a.kind === "pdf" ? "PDF" : a.name.split(".").pop()?.toUpperCase() ?? "TXT"}
                   </span>
                 </div>
               )}
               <button
                 onClick={() => setAttachments((list) => list.filter((x) => x.id !== a.id))}
-                className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-bad text-white opacity-0 transition-opacity group-hover:opacity-100"
+                // Always visible on a phone: hover-to-reveal would make removing an attachment
+                // impossible there.
+                className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-bad text-white transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                 title="Remove"
               >
-                <X className="h-2.5 w-2.5" />
+                <X className="h-3 w-3" />
               </button>
             </div>
           ))}
@@ -143,24 +148,26 @@ export function Composer({
         }}
         rows={large ? 2 : 1}
         placeholder={placeholder}
-        className={`w-full resize-none bg-transparent px-4 text-fg outline-none placeholder:text-faint ${large ? "pt-4 text-sm" : "pt-3 text-[13px]"}`}
+        // 16px under a thumb: below that, mobile Safari zooms the whole viewport the moment the
+        // composer is tapped, and the workspace behind it is thrown off screen.
+        className={`w-full resize-none bg-transparent px-4 text-fg outline-none placeholder:text-faint ${
+          large ? "pt-4 text-title sm:text-head" : "pt-3 text-title sm:text-body"
+        }`}
       />
 
       <div className="flex items-center justify-between px-2.5 pb-2.5 pt-1">
         <div className="flex items-center gap-1">
           <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden onChange={(e) => onFiles(e.target.files)} />
-          <button
-            onClick={() => fileRef.current?.click()}
-            title="Attach image, PDF, DOCX, or text file"
-            className="grid h-8 w-8 place-items-center rounded-md text-muted transition-colors hover:bg-line hover:text-fg"
-          >
+          <IconButton title="Attach image, PDF, DOCX, or text file" onClick={() => fileRef.current?.click()}>
             <Paperclip className="h-4 w-4" />
-          </button>
+          </IconButton>
           {speech.supported && (
             <button
               onClick={toggleMic}
               title={speech.listening ? "Stop dictation" : "Dictate (voice to text)"}
-              className={`grid h-8 w-8 place-items-center rounded-md transition-colors ${
+              // Same box as IconButton, but the listening state is its own treatment rather than
+              // IconButton's generic `active`.
+              className={`grid h-9 w-9 place-items-center rounded-lg transition-all duration-100 active:scale-95 sm:h-8 sm:w-8 ${
                 speech.listening
                   ? "animate-pulse bg-accent/15 text-accent"
                   : "text-muted hover:bg-line hover:text-fg"
@@ -174,7 +181,7 @@ export function Composer({
         <button
           onClick={send}
           disabled={busy || (!text.trim() && attachments.length === 0)}
-          className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-30"
+          className="grid h-9 w-9 place-items-center rounded-lg bg-accent text-accent-fg transition-all duration-100 hover:opacity-90 active:scale-95 disabled:opacity-30 sm:h-8 sm:w-8"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

@@ -171,7 +171,15 @@ function stripInline(s: string): string {
     .replace(/\[(.+?)\]\(.+?\)/g, "$1");
 }
 
-function triggerDownload(blob: Blob, filename: string) {
+/**
+ * The one safe download primitive in the app: object URL → anchor → click → revoke *later*.
+ *
+ * The delay matters. Revoking synchronously after `click()` races the browser's fetch of the URL,
+ * which shows up as a silently missing file for larger blobs — a binary STL or a multi-megabyte
+ * PNG. Every export path (Markdown, text, PDF, PNG, STL/OBJ/GLB) goes through here so none of them
+ * can reintroduce that.
+ */
+export function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

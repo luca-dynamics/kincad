@@ -2,15 +2,17 @@
 // the Vercel serverless functions (api/*.ts). Holds key resolution, provider routing, and the
 // engine-grounded tool loop. Reads keys from process.env (local: .env; Vercel: project env).
 
-import { MODELS, providerOf, isQuotaError, type Provider } from "../shared/models.ts";
-import { runAnthropic, runGemini, runOpenAI, type ChatTurn } from "./providers.ts";
+import { MODELS, providerOf, isQuotaError, upstreamModelId, type Provider } from "../shared/models.ts";
+import { runAgentRouter, runAnthropic, runGemini, runOpenAI, type ChatTurn } from "./providers.ts";
 import { buildSystemPrompt, type WorkingState } from "./tools.ts";
-import { DEFAULT_FOURBAR, DEFAULT_SLIDER } from "../src/state.ts";
+import { DEFAULT_FOURBAR, DEFAULT_OMEGA2, DEFAULT_SLIDER } from "../src/state.ts";
+import { DEFAULT_UNIT } from "../src/units.ts";
 
 export function serverKey(p: Provider): string | undefined {
   if (p === "anthropic") return process.env.ANTHROPIC_API_KEY;
   if (p === "openai") return process.env.OPENAI_API_KEY;
   if (p === "google") return process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+  if (p === "agentrouter") return process.env.AGENTROUTER_API_KEY;
   return undefined;
 }
 
@@ -21,15 +23,33 @@ export function healthPayload() {
       anthropic: !!serverKey("anthropic"),
       openai: !!serverKey("openai"),
       google: !!serverKey("google"),
+      agentrouter: !!serverKey("agentrouter"),
     },
     models: MODELS,
   };
 }
 
+/**
+ * Provider → adapter, written as a total `Record<Provider, …>` rather than a chain of ternaries:
+ * the old `p === "anthropic" ? … : p === "openai" ? … : runGemini` sent ANY unhandled provider's
+ * traffic to Gemini, signed with that provider's key. A missing entry here is now visible instead
+ * of silently misrouted.
+ *
+ * Exported for the totality check in server/__tests__/gateway.test.ts. That test, not the compiler,
+ * is what enforces it: `server/` is not part of any tsconfig `include`, so nothing here is
+ * type-checked by `tsc -b` (see the note in tsconfig.node.json).
+ */
+export const RUNNERS: Record<Provider, typeof runAnthropic> = {
+  anthropic: runAnthropic,
+  openai: runOpenAI,
+  google: runGemini,
+  agentrouter: runAgentRouter,
+};
+
 export interface CopilotBody {
   model: string;
   messages: ChatTurn[];
-  context?: Partial<WorkingState> & { user?: { name?: string } };
+  context?: Partial<WorkingState> & { user?: { name?: string }; approvalRequired?: boolean };
   apiKey?: string; // BYOK
 }
 
@@ -56,16 +76,30 @@ export async function runCopilot(body: CopilotBody): Promise<HandlerResult> {
     kind: context?.kind ?? "fourbar",
     fourbar: context?.fourbar ?? DEFAULT_FOURBAR,
     slider: context?.slider ?? DEFAULT_SLIDER,
+    // Falls back to the workspace default rather than the engine's unit-rate 1 rad/s: a client that
+    // sends no speed is still a client running the app at its default speed.
+    omega2: context?.omega2 ?? DEFAULT_OMEGA2,
+    // Same fallback reasoning: a client that declares no unit is a client running at the app's
+    // default declaration, so the prompt states that rather than leaving the unit unnamed.
+    unit: context?.unit ?? DEFAULT_UNIT,
   };
 
   const history = (messages ?? []).map((m) => ({ role: m.role, content: m.content, images: m.images, documents: m.documents }));
-  const system = buildSystemPrompt(context?.user);
-  const run = provider === "anthropic" ? runAnthropic : provider === "openai" ? runOpenAI : runGemini;
+  const system = buildSystemPrompt({
+    user: context?.user,
+    approvalRequired: context?.approvalRequired,
+    // Read off the state built above, not off `context` again — that way the unit the prompt
+    // declares is the same one the tools operate under, even when both are defaulted.
+    unit: state.unit,
+  });
+  const run = RUNNERS[provider];
   // Always pass both image keys so generate_image works regardless of which text model is active.
   const imageKeys = { googleKey: serverKey("google"), openAIKey: serverKey("openai") };
 
   try {
-    const result = await run(model, key, history, state, system, imageKeys);
+    // Gateway ids are namespaced in the registry (`agentrouter/claude-opus-5`) so they cannot
+    // collide with the first-party entry for the same model; the upstream API wants the bare id.
+    const result = await run(upstreamModelId(model), key, history, state, system, imageKeys);
     return { status: 200, body: result };
   } catch (err) {
     const msg = (err as Error).message;

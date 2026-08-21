@@ -3,6 +3,7 @@
 import type { FourBarLinkage, SliderCrankLinkage } from "./engine";
 import { toRad } from "./engine";
 import type { CadModel } from "./cad/types";
+import { DEFAULT_UNIT, type LengthUnit } from "./units";
 
 export type MechanismKind = "fourbar" | "slidercrank";
 
@@ -16,6 +17,11 @@ export interface WorkspaceState {
   speed: number; // animation rate multiplier
   showCouplerCurve: boolean;
   showGrid: boolean;
+  /**
+   * The length unit these link dimensions are declared in. A label, not a scale factor: the solver
+   * is scale-free and never reads it, so changing it moves nothing — see [units.ts](units.ts).
+   */
+  unit: LengthUnit;
   /** Last freeform CAD model the agent generated (rendered in the CAD view), if any. */
   cadModel: CadModel | null;
 }
@@ -37,15 +43,24 @@ export const DEFAULT_SLIDER: SliderCrankLinkage = {
   offset: 0.4,
 };
 
+/**
+ * Default input speed, 1 rev/s. Named because it is not only an initial value: it is the fallback
+ * basis for reports rebuilt from data that predates ω₂ being recorded (a conversation saved before
+ * the approval card carried a speed), and the server's fallback when a client sends no speed at all.
+ * Both need the speed the workspace actually runs at, not the engine's unit-rate 1 rad/s.
+ */
+export const DEFAULT_OMEGA2 = 2 * Math.PI;
+
 export const INITIAL_STATE: WorkspaceState = {
   kind: "fourbar",
   fourbar: DEFAULT_FOURBAR,
   slider: DEFAULT_SLIDER,
   theta2: 0,
-  omega2: 2 * Math.PI, // 1 rev/s
+  omega2: DEFAULT_OMEGA2, // 1 rev/s
   playing: true,
   speed: 1,
   showCouplerCurve: true,
   showGrid: true,
+  unit: DEFAULT_UNIT,
   cadModel: null,
 };

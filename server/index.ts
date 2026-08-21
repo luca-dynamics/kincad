@@ -7,7 +7,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { healthPayload, runCopilot, serverKey, type CopilotBody } from "./handler.ts";
-import type { Provider } from "../shared/models.ts";
+import { PROVIDER_LABEL, type Provider } from "../shared/models.ts";
 
 dotenv.config();
 
@@ -24,6 +24,8 @@ app.post("/api/copilot", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`KINCAD AI proxy on http://localhost:${PORT}`);
-  const have = (["anthropic", "openai", "google"] as Provider[]).filter((p) => serverKey(p));
+  // Enumerated from the label table, not hand-listed, so a new provider cannot be keyed and
+  // working yet missing from this startup line.
+  const have = (Object.keys(PROVIDER_LABEL) as Provider[]).filter((p) => serverKey(p));
   console.log(have.length ? `  server keys: ${have.join(", ")}` : "  no server keys set (BYOK only)");
 });

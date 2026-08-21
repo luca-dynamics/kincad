@@ -1,6 +1,12 @@
 // Deterministic analysis SUMMARY. Aggregates a full-cycle sweep into the headline numbers an
 // engineer (or the AI copilot, or the PDF report) needs. Every value here is computed by the
 // solvers — nothing is estimated.
+//
+// The two builders take the input speed ω₂ and echo it back on the report they return. The default
+// of 1 rad/s is a UNIT-RATE analysis — a legitimate engine convention (ω₄/ω₂ is the velocity ratio,
+// and μ, Grashof, stroke and the coupler envelope are geometry-only) but the wrong basis for
+// anything the user reads next to their own speed setting. Application code must therefore reach
+// these through `insight.ts → reportFor`, where ω₂ is a REQUIRED argument.
 
 import { classifyGrashof, inputFullyRotates, sweepFourBar } from "./fourbar";
 import { sliderInputFullyRotates, sweepSliderCrank } from "./slidercrank";
@@ -15,6 +21,16 @@ export interface Extremum {
 export interface FourBarReport {
   kind: "fourbar";
   link: FourBarLinkage;
+  /**
+   * The input speed the velocity and acceleration figures below were computed at, in rad/s.
+   *
+   * Recorded rather than assumed, because it is not recoverable from the numbers: ω₄ scales
+   * linearly with ω₂ and α₄ with ω₂², so a sweep at the engine's unit-rate default produces a
+   * self-consistent report whose speeds are silently wrong for the workspace that requested it.
+   * That is exactly the defect this field exists to make impossible — any consumer printing
+   * `omega4`/`alpha4` must print this alongside them.
+   */
+  omega2: number;
   grashof: GrashofResult;
   inputFullyRotates: boolean;
   reachableArcDeg: number; // how much of 360° the input can occupy
@@ -28,6 +44,8 @@ export interface FourBarReport {
 export interface SliderCrankReport {
   kind: "slidercrank";
   link: SliderCrankLinkage;
+  /** Input speed the velocity/acceleration figures were computed at, in rad/s. See `FourBarReport`. */
+  omega2: number;
   inputFullyRotates: boolean;
   stroke: number;
   sliderVel: { min: Extremum; max: Extremum };
@@ -38,11 +56,17 @@ export interface SliderCrankReport {
 
 export type AnalysisReport = FourBarReport | SliderCrankReport;
 
-const POOR_TRANSMISSION_DEG = 40; // common design rule of thumb
+/**
+ * The design guideline every transmission-angle judgement in the app is measured against.
+ * Exported because the UI colour-codes against it too: `FourBarReport` publishes it as
+ * `transmission.poorBelowDeg`, but the slider-crank report has no such field while applying the
+ * identical rule below — so a consumer that handles both mechanisms needs the number itself.
+ */
+export const POOR_TRANSMISSION_DEG = 40; // common design rule of thumb
 
-export function buildFourBarReport(link: FourBarLinkage, steps = 720): FourBarReport {
+export function buildFourBarReport(link: FourBarLinkage, steps = 720, omega2 = 1): FourBarReport {
   const grashof = classifyGrashof(link);
-  const states = sweepFourBar(link, steps);
+  const states = sweepFourBar(link, steps, omega2);
 
   const tA: Extremum = { value: Infinity, atTheta2Deg: 0 };
   const tB: Extremum = { value: -Infinity, atTheta2Deg: 0 };
@@ -79,6 +103,7 @@ export function buildFourBarReport(link: FourBarLinkage, steps = 720): FourBarRe
   return {
     kind: "fourbar",
     link,
+    omega2,
     grashof,
     inputFullyRotates: inputFullyRotates(link),
     reachableArcDeg: (states.length / steps) * 360,
@@ -90,8 +115,8 @@ export function buildFourBarReport(link: FourBarLinkage, steps = 720): FourBarRe
   };
 }
 
-export function buildSliderCrankReport(link: SliderCrankLinkage, steps = 720): SliderCrankReport {
-  const states = sweepSliderCrank(link, steps);
+export function buildSliderCrankReport(link: SliderCrankLinkage, steps = 720, omega2 = 1): SliderCrankReport {
+  const states = sweepSliderCrank(link, steps, omega2);
   const vA: Extremum = { value: Infinity, atTheta2Deg: 0 };
   const vB: Extremum = { value: -Infinity, atTheta2Deg: 0 };
   const aA: Extremum = { value: Infinity, atTheta2Deg: 0 };
@@ -124,6 +149,7 @@ export function buildSliderCrankReport(link: SliderCrankLinkage, steps = 720): S
   return {
     kind: "slidercrank",
     link,
+    omega2,
     inputFullyRotates: sliderInputFullyRotates(link),
     stroke: maxPos - minPos,
     sliderVel: { min: vA, max: vB },

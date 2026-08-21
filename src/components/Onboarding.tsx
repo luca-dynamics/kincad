@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { MessageSquare, Gauge, Box, FileText, Sun, Moon, ChevronLeft, ChevronRight } from "lucide-react";
 import { LogoMark } from "./Logo";
+import { Button } from "./ui";
 import { useTheme } from "../theme";
 
 const FEATURES = [
@@ -25,16 +26,18 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-md">
-      <div className="glass w-full max-w-lg overflow-hidden rounded-2xl">
+      {/* `max-h` + scroll, not `overflow-hidden`: the feature grid is a single column on a phone,
+          which is taller than any step on a laptop and would otherwise run off a short viewport. */}
+      <div className="glass glass-modal max-h-full w-full max-w-lg overflow-y-auto rounded-2xl">
         {/* header */}
         <div className="flex items-center justify-between border-b border-line px-6 py-2.5">
           <span className="flex items-center gap-2">
             <LogoMark size={22} />
-            <span className="text-sm font-semibold tracking-tight text-fg">
+            <span className="text-head font-semibold tracking-tight text-fg">
               KIN<span className="text-accent">CAD</span>
             </span>
           </span>
-          <span className="text-[10px] font-medium text-faint">Step {step + 1} of {STEPS}</span>
+          <span className="text-micro font-medium text-faint">Step {step + 1} of {STEPS}</span>
         </div>
 
         {/* step content (fixed height so the box doesn't jump between steps) */}
@@ -43,8 +46,8 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
             {step === 0 && (
               <div className="flex flex-1 flex-col items-center justify-center text-center">
                 <LogoMark size={52} />
-                <h1 className="mt-5 text-xl font-semibold tracking-tight text-fg">Welcome to KINCAD</h1>
-                <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                <h1 className="mt-5 text-display font-semibold tracking-tight text-fg">Welcome to KINCAD</h1>
+                <p className="mt-2 text-body text-muted">
                   An AI-assisted CAD workspace for <span className="text-fg">kinematic analysis and synthesis of planar
                   mechanisms</span> — four-bar and slider-crank. Describe a mechanism and the agent builds, animates and
                   analyses it, with every number from a deterministic solver.
@@ -54,15 +57,18 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
 
             {step === 1 && (
               <div className="flex flex-1 flex-col">
-                <h2 className="text-base font-semibold tracking-tight text-fg">What you can do</h2>
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <h2 className="text-head font-semibold tracking-tight text-fg">What you can do</h2>
+                {/* One column on a phone: two 160px cards side by side truncate every title. */}
+                <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {FEATURES.map((f) => (
+                    // `glass-2`, not the shared `Card`: inside a glass modal these tiles are meant
+                    // to be translucent, and Card is deliberately opaque.
                     <div key={f.title} className="glass-2 rounded-xl p-3">
                       <div className="mb-1 flex items-center gap-1.5 text-accent">
                         {f.icon}
-                        <span className="text-[12px] font-medium text-fg">{f.title}</span>
+                        <span className="text-meta font-medium text-fg">{f.title}</span>
                       </div>
-                      <p className="text-[11px] leading-snug text-muted">{f.desc}</p>
+                      <p className="text-mini text-muted">{f.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -71,22 +77,24 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
 
             {step === 2 && (
               <div className="flex flex-1 flex-col">
-                <h2 className="text-base font-semibold tracking-tight text-fg">Make it yours</h2>
-                <p className="mt-1 text-[12px] text-muted">A name to greet you by, and your theme.</p>
+                <h2 className="text-head font-semibold tracking-tight text-fg">Make it yours</h2>
+                <p className="mt-1 text-meta text-muted">A name to greet you by, and your theme.</p>
                 <div className="mt-5 space-y-4">
                   <div>
-                    <label className="mb-1.5 block text-[11px] font-medium text-muted">Set username for KINCAD</label>
+                    <label className="mb-1.5 block text-mini font-medium text-muted">Set username for KINCAD</label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && next()}
                       placeholder="Your name"
                       autoFocus
-                      className="w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-[13px] text-fg outline-none placeholder:text-faint focus:border-accent/60"
+                      // 16px under a thumb — this input is autofocused, so a sub-16px size means
+                      // mobile Safari zooms the modal the instant onboarding opens.
+                      className="w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-title text-fg outline-none placeholder:text-faint focus:border-accent/60 sm:text-body"
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-[11px] font-medium text-muted">Theme</label>
+                    <label className="mb-1.5 block text-mini font-medium text-muted">Theme</label>
                     <div className="flex gap-1.5 rounded-lg bg-panel-2 p-1 ring-1 ring-line">
                       <ThemeBtn active={theme === "light"} onClick={() => setTheme("light")} icon={<Sun className="h-4 w-4" />} label="Light" />
                       <ThemeBtn active={theme === "dark"} onClick={() => setTheme("dark")} icon={<Moon className="h-4 w-4" />} label="Dark" />
@@ -99,10 +107,10 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
             {step === 3 && (
               <div className="flex flex-1 flex-col items-center justify-center text-center">
                 <LogoMark size={44} />
-                <h2 className="mt-4 text-lg font-semibold tracking-tight text-fg">
+                <h2 className="mt-4 text-title font-semibold tracking-tight text-fg">
                   You're all set{name.trim() ? `, ${name.trim().split(" ")[0]}` : ""}
                 </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                <p className="mt-2 text-body text-muted">
                   Describe a mechanism, ask an engineering question, or open one from the sidebar to begin.
                 </p>
               </div>
@@ -110,12 +118,12 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
           </div>
         </div>
 
-        {/* footer nav */}
+        {/* footer nav — every control in this row is the height of the primary CTA */}
         <div className="flex items-center justify-between border-t border-line px-6 py-2.5">
           <button
             onClick={prev}
             disabled={step === 0}
-            className="grid h-8 w-8 place-items-center rounded-full border border-line text-muted transition-colors hover:text-fg disabled:opacity-30"
+            className="grid h-10 w-10 place-items-center rounded-full border border-line text-muted transition-colors hover:text-fg disabled:opacity-30 sm:h-9 sm:w-9"
             aria-label="Previous"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -126,20 +134,26 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
               <button
                 key={i}
                 onClick={() => setStep(i)}
-                className={`h-1.5 rounded-full transition-all ${i === step ? "w-5 bg-accent" : "w-1.5 bg-line"}`}
+                // The dot stays 6px; the button around it is 32px. A 6px tap target is not a control.
+                className="grid h-8 place-items-center px-1 sm:h-5"
                 aria-label={`Step ${i + 1}`}
-              />
+                aria-current={i === step ? "step" : undefined}
+              >
+                <span
+                  className={`block h-1.5 rounded-full transition-all ${i === step ? "w-5 bg-accent" : "w-1.5 bg-line"}`}
+                />
+              </button>
             ))}
           </div>
 
           {step === STEPS - 1 ? (
-            <button onClick={finish} className="rounded-lg bg-accent px-4 py-1.5 text-[12px] font-medium text-accent-fg transition-opacity hover:opacity-90">
+            <Button variant="primary" size="md" onClick={finish}>
               Get started
-            </button>
+            </Button>
           ) : (
             <button
               onClick={next}
-              className="grid h-8 w-8 place-items-center rounded-full border border-line text-muted transition-colors hover:border-accent/50 hover:text-accent"
+              className="grid h-10 w-10 place-items-center rounded-full border border-line text-muted transition-colors hover:border-accent/50 hover:text-accent sm:h-9 sm:w-9"
               aria-label="Next"
             >
               <ChevronRight className="h-4 w-4" />
@@ -148,7 +162,7 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
         </div>
 
         {/* credit strip */}
-        <div className="border-t border-line bg-panel-2/60 px-6 py-2 text-center text-[10px] leading-relaxed text-faint">
+        <div className="border-t border-line bg-panel-2/60 px-6 py-2 text-center text-micro text-faint">
           Mechanical Engineering Final-Year Project · <span className="text-muted">Ibidun Quyum Babatunde</span> ·{" "}
           <span className="num">2021/1/82451EM</span>
         </div>
@@ -161,7 +175,7 @@ function ThemeBtn({ active, onClick, icon, label }: { active: boolean; onClick: 
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-md py-1.5 text-[12px] transition-colors ${active ? "bg-accent/15 font-medium text-accent" : "text-muted hover:text-fg"}`}
+      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-meta transition-colors sm:py-1.5 ${active ? "bg-accent/15 font-medium text-accent" : "text-muted hover:text-fg"}`}
     >
       {icon}
       {label}

@@ -2,11 +2,13 @@
 // mechanism, or generated CAD) + a collapsible plots drawer.
 
 import { lazy, Suspense } from "react";
-import TopBar, { type ViewMode } from "./TopBar";
+import TopBar, { type PanelToggles, type ViewMode } from "./TopBar";
 import Workspace from "./Workspace";
 import Plots from "./Plots";
 import type { WorkspaceState } from "../state";
 import type { FourBarLinkage, SliderCrankLinkage } from "../engine";
+import type { MeshFormat } from "../cad/export";
+import { SURFACE_ID } from "../report/capture";
 
 const ThreeView = lazy(() => import("./three/ThreeView"));
 const CadView = lazy(() => import("./three/CadView"));
@@ -25,11 +27,13 @@ interface Props {
   onReset: () => void;
   onExportPDF: () => void;
   onExportPNG: () => void;
-  onExportSTL: () => void;
+  onExportModel: (format: MeshFormat) => void;
+  /** Straight through to TopBar. Undefined on mobile — this component is shared by both layouts. */
+  panels?: PanelToggles;
 }
 
 const Fallback = ({ label }: { label: string }) => (
-  <div className="grid h-full w-full place-items-center text-xs text-faint">{label}</div>
+  <div className="grid h-full w-full place-items-center px-6 text-center text-meta text-faint">{label}</div>
 );
 
 export default function Viewport(p: Props) {
@@ -48,10 +52,14 @@ export default function Viewport(p: Props) {
         onPatch={p.onPatch}
         onExportPDF={p.onExportPDF}
         onExportPNG={p.onExportPNG}
-        onExportSTL={p.onExportSTL}
+        onExportModel={p.onExportModel}
+        panels={p.panels}
       />
 
-      <div className="relative min-h-0 flex-1">
+      {/* The capture anchor for every export. All three views mount into this one container, and
+          `activeViewCanvas()` finds the canvas inside it — see [capture.ts](../report/capture.ts)
+          for why the id cannot live on the r3f `<Canvas>` itself. */}
+      <div id={SURFACE_ID} className="relative min-h-0 flex-1">
         {p.viewMode === "2d" && (
           <Workspace
             state={p.state}
@@ -77,7 +85,9 @@ export default function Viewport(p: Props) {
 
       {p.plotsOpen && !isCad && (
         <div className="hidden flex-shrink-0 border-t border-line sm:block">
-          <Plots state={p.state} />
+          {/* Scrubbing sets the angle and stops the clock — `onPatch` does both, where
+              `onSetTheta2` would leave the animation to overwrite the drag on the next frame. */}
+          <Plots state={p.state} onScrub={(t) => p.onPatch({ theta2: t, playing: false })} />
         </div>
       )}
     </div>

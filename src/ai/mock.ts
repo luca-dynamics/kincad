@@ -2,6 +2,11 @@
 // natural language, (2) answers common ME questions from a small knowledge base, and
 // (3) narrates the deterministic analysis. After any geometry edit it recomputes the report
 // so its description reflects the NEW mechanism, not the old one.
+//
+// The canned replies below are MARKDOWN, on the same terms as narrate.ts: blocks joined with
+// "\n\n", bullets starting "- ", bold label then plain detail. Each of them enumerates options —
+// what to do instead, what still works offline — and a list is what that is. Written as one
+// paragraph they read as a wall of prose, which is exactly the run-on the narration was fixed for.
 
 import { buildFourBarReport, buildSliderCrankReport } from "../engine";
 import { applyActions } from "./apply";
@@ -22,20 +27,26 @@ export class OfflineAgent implements AgentModel {
 
     if (lastUser?.attachments?.length) {
       return {
-        text:
-          "I can see you attached an image, but offline mode can't analyse images. Select a vision-capable cloud model " +
-          "(Claude, GPT-4o, or Gemini) from the model menu and add a key to interpret sketches or diagrams. " +
-          "Meanwhile, you can describe the mechanism in text and I'll build it.",
+        text: [
+          "I can see the attachment, but offline mode can't analyse images.",
+          [
+            "- **To read a sketch or diagram** — pick a vision-capable cloud model (Claude, GPT-4o or Gemini) from the model menu and add a key.",
+            "- **Or describe it in words** — give me the link lengths and I'll build the mechanism now.",
+          ].join("\n"),
+        ].join("\n\n"),
       };
     }
 
     // Freeform 3D CAD generation needs a connected model (the offline agent only does mechanisms).
     if (/\b(cad part|3d part|3d model|\.stl|\bstl\b|bracket|flange|enclosure|gear blank|extrude|fillet)\b/.test(lower)) {
       return {
-        text:
-          "Generating freeform 3D CAD parts (brackets, plates, flanges…) needs a connected model — pick Claude, GPT-4o " +
-          "or Gemini from the model menu and add a key, then describe the part and I'll build it and let you export STL. " +
-          "Offline, I can still build and analyse four-bar and slider-crank mechanisms.",
+        text: [
+          "Freeform 3D CAD parts — brackets, plates, flanges — need a connected model.",
+          [
+            "- **To generate one** — pick Claude, GPT-4o or Gemini from the model menu and add a key, then describe the part. You'll be able to export STL.",
+            "- **Offline** — I can still build and analyse four-bar and slider-crank mechanisms.",
+          ].join("\n"),
+        ].join("\n\n"),
       };
     }
 
@@ -48,10 +59,10 @@ export class OfflineAgent implements AgentModel {
       );
       const report =
         next.kind === "fourbar"
-          ? buildFourBarReport(next.fourbar, 360)
-          : buildSliderCrankReport(next.slider, 360);
+          ? buildFourBarReport(next.fourbar, 360, ctx.omega2)
+          : buildSliderCrankReport(next.slider, 360, ctx.omega2);
       return {
-        text: `Done — ${intent.note}. Here's the updated analysis:\n\n${describeReport(report)}`,
+        text: `Done — ${intent.note}. Here's the updated analysis:\n\n${describeReport(report, ctx.unit)}`,
         actions: [...intent.actions, { type: "run_analysis" }],
       };
     }
@@ -60,9 +71,9 @@ export class OfflineAgent implements AgentModel {
     if (/improve|suggest|better|optimi|fix|reduce|increase the/.test(lower))
       return { text: suggestImprovements(ctx.report) };
     if (/velocity|speed|omega|acceler|alpha|motion/.test(lower))
-      return { text: describeMotion(ctx.report) };
+      return { text: describeMotion(ctx.report, ctx.unit) };
     if (/explain|result|summary|report|analy|current|this mechanism|is this/.test(lower))
-      return { text: describeReport(ctx.report) };
+      return { text: describeReport(ctx.report, ctx.unit) };
 
     // 3) Knowledge base.
     const kb = lookupKnowledge(q);
@@ -70,11 +81,15 @@ export class OfflineAgent implements AgentModel {
 
     // 4) Fallback — be honest about the offline limitation.
     return {
-      text:
-        "Offline mode handles workspace commands (e.g. *“make a crank-rocker”*, *“set coupler to 3.5”*, " +
-        "*“switch to slider-crank”*), explanations of the current analysis, and common kinematics topics " +
-        "(Grashof, transmission angle, DOF, coupler curves, synthesis). For open-ended questions, connect a " +
-        "Claude model from the selector above. What would you like to do?",
+      text: [
+        "Offline mode handles three things:",
+        [
+          "- **Workspace commands** — *“make a crank-rocker”*, *“set coupler to 3.5”*, *“switch to slider-crank”*.",
+          "- **Explanations of the current analysis** — the results, the motion, or how to improve the design.",
+          "- **Common kinematics topics** — Grashof, transmission angle, DOF, coupler curves, synthesis.",
+        ].join("\n"),
+        "For open-ended questions, connect a Claude model from the selector above. What would you like to do?",
+      ].join("\n\n"),
     };
   }
 }

@@ -30,7 +30,7 @@ export type {
   TwoPositionInput,
   TwoPositionResult,
 } from "./synthesis";
-export { buildFourBarReport, buildSliderCrankReport } from "./report";
+export { buildFourBarReport, buildSliderCrankReport, POOR_TRANSMISSION_DEG } from "./report";
 export type {
   AnalysisReport,
   FourBarReport,

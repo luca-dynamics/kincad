@@ -32,6 +32,16 @@ export interface RunResult {
 
 const MAX_ROUNDS = 8;
 
+/**
+ * Output ceiling per Anthropic request. Claude 5 models reason before answering by default, and
+ * those thinking tokens are drawn from this same budget — so the old 1800 could be spent almost
+ * entirely on reasoning and truncate the reply mid-sentence, which inside the tool loop can also
+ * cut off a tool call. A ceiling is not a charge: unused tokens cost nothing. Kept well below the
+ * point where the API requires a streaming request, since this loop is deliberately non-streaming
+ * (see the honesty rule in src/components/chat/ActivityTrace.tsx).
+ */
+const MAX_TOKENS = 8000;
+
 // ── Anthropic (Claude) ───────────────────────────────────────────────────────
 export async function runAnthropic(
   model: string,
@@ -69,10 +79,13 @@ export async function runAnthropic(
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: 1800, system, messages, tools }),
+      body: JSON.stringify({ model, max_tokens: MAX_TOKENS, system, messages, tools }),
     });
     if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = await res.json();
+    // Push the assistant turn back VERBATIM. With thinking on, the reply carries signed thinking
+    // blocks that the API requires unaltered on the next round of a tool loop — filtering the
+    // content down to text here would make the follow-up request invalid.
     messages.push({ role: "assistant", content: data.content });
     if (data.stop_reason === "tool_use") {
       const toolResults = [];
@@ -95,14 +108,27 @@ export async function runAnthropic(
   return { text: "(stopped after too many tool iterations)", actions };
 }
 
-// ── OpenAI (GPT) ─────────────────────────────────────────────────────────────
-export async function runOpenAI(
+// ── OpenAI-compatible (`POST /v1/chat/completions`) ──────────────────────────
+// Shared by OpenAI itself and by any gateway that speaks the same wire format (AgentRouter,
+// OpenRouter, LiteLLM, One API / New API, vLLM, Ollama…). Only the base URL and the key differ,
+// so the transport is written once and parameterised rather than copied per vendor — a second
+// copy of this loop is a second place for the tool-result plumbing to drift.
+async function runOpenAICompatible(
+  vendor: string,
+  baseUrl: string,
   model: string,
   apiKey: string,
   history: ChatTurn[],
   state: WorkingState,
   system: string,
   imageKeys?: ImageKeys,
+  /**
+   * Overrides the outgoing `User-Agent`. Only set for gateways that gate on client identity —
+   * AgentRouter answers `401 unauthorized_client_error` to an unrecognised agent (see
+   * `runAgentRouter`). Left undefined the runtime's own agent is sent, which is the correct
+   * behaviour for every first-party vendor.
+   */
+  userAgent?: string,
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const messages: unknown[] = [
@@ -131,13 +157,24 @@ export async function runOpenAI(
   }));
 
   for (let i = 0; i < MAX_ROUNDS; i++) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+        ...(userAgent ? { "user-agent": userAgent } : {}),
+      },
       body: JSON.stringify({ model, messages, tools, tool_choice: "auto" }),
     });
-    if (!res.ok) throw new Error(`openai ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!res.ok) throw new Error(`${vendor} ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = await res.json();
+    // A gateway can return HTTP 200 with an error envelope and no choices array. Reading
+    // choices[0] blind would throw a TypeError, which surfaces to the user as a generic 502
+    // instead of the vendor's actual message.
+    if (!data.choices?.length) {
+      const detail = data.error?.message ?? data.message ?? JSON.stringify(data).slice(0, 300);
+      throw new Error(`${vendor} returned no completion: ${detail}`);
+    }
     const msg = data.choices[0].message;
     messages.push(msg);
     if (msg.tool_calls?.length) {
@@ -157,6 +194,66 @@ export async function runOpenAI(
     return { text: msg.content || "", actions };
   }
   return { text: "(stopped after too many tool iterations)", actions };
+}
+
+// ── OpenAI (GPT) ─────────────────────────────────────────────────────────────
+export function runOpenAI(
+  model: string,
+  apiKey: string,
+  history: ChatTurn[],
+  state: WorkingState,
+  system: string,
+  imageKeys?: ImageKeys,
+): Promise<RunResult> {
+  return runOpenAICompatible("openai", "https://api.openai.com/v1", model, apiKey, history, state, system, imageKeys);
+}
+
+// ── AgentRouter (third-party multi-vendor gateway) ───────────────────────────
+/**
+ * AgentRouter fronts several vendors' models behind one key and one OpenAI-compatible surface
+ * (the deployment identifies itself as One API / New API via its `X-Oneapi-Request-Id` response
+ * header, and its router returns OpenAI's `invalid_request_error` envelope).
+ *
+ * The base URL is overridable so the same adapter serves any other OpenAI-compatible gateway
+ * without a code change. The registry id is namespaced `agentrouter/...`; `upstreamModelId`
+ * strips that prefix before the request leaves, because the gateway expects the bare vendor id.
+ *
+ * THE GATEWAY GATES ON `User-Agent`, NOT ON THE KEY. Every `/v1/*` request carrying an
+ * unrecognised agent is answered `401 {"type":"unauthorized_client_error"}` — identically for a
+ * valid key, an invalid key and no key at all, which makes the response useless as a diagnostic
+ * and is why this looked like a dead credential for so long. Measured against a live key:
+ *
+ *     POST /v1/chat/completions   UA "claude-cli/<v> (external, cli)"  -> 200, OpenAI-shaped
+ *     POST /v1/chat/completions   UA "kincad/1.0" | node | curl        -> 401
+ *     POST /v1/messages           UA "claude-cli/<v> (external, cli)"  -> 200, Anthropic-shaped
+ *     POST /v1/messages           UA "kincad/1.0"                      -> 401
+ *
+ * So the wire contract below is right and the path is right; only the agent string decides. It is
+ * therefore read from the environment and NOT defaulted: the only strings observed to pass name
+ * other vendors' clients, and hardcoding one would ship an impersonation nobody chose and would
+ * break silently the moment the gateway tightens the check. Set AGENTROUTER_USER_AGENT to whatever
+ * agent AgentRouter authorises for your key.
+ */
+export function runAgentRouter(
+  model: string,
+  apiKey: string,
+  history: ChatTurn[],
+  state: WorkingState,
+  system: string,
+  imageKeys?: ImageKeys,
+): Promise<RunResult> {
+  const baseUrl = (process.env.AGENTROUTER_BASE_URL || "https://agentrouter.org/v1").replace(/\/+$/, "");
+  return runOpenAICompatible(
+    "agentrouter",
+    baseUrl,
+    model,
+    apiKey,
+    history,
+    state,
+    system,
+    imageKeys,
+    process.env.AGENTROUTER_USER_AGENT,
+  );
 }
 
 // ── Google (Gemini) ──────────────────────────────────────────────────────────
