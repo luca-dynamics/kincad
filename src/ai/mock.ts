@@ -30,8 +30,8 @@ export class OfflineAgent implements AgentModel {
         text: [
           "I can see the attachment, but offline mode can't analyse images.",
           [
-            "- **To read a sketch or diagram** — pick a vision-capable cloud model (Claude, GPT-4o or Gemini) from the model menu and add a key.",
-            "- **Or describe it in words** — give me the link lengths and I'll build the mechanism now.",
+            "- **To read a sketch or diagram:** pick a vision-capable cloud model (Claude, GPT-4o or Gemini) from the model menu and add a key.",
+            "- **Or describe it in words:** give me the link lengths and I'll build the mechanism now.",
           ].join("\n"),
         ].join("\n\n"),
       };
@@ -41,10 +41,10 @@ export class OfflineAgent implements AgentModel {
     if (/\b(cad part|3d part|3d model|\.stl|\bstl\b|bracket|flange|enclosure|gear blank|extrude|fillet)\b/.test(lower)) {
       return {
         text: [
-          "Freeform 3D CAD parts — brackets, plates, flanges — need a connected model.",
+          "Freeform 3D CAD parts (brackets, plates, flanges) need a connected model.",
           [
-            "- **To generate one** — pick Claude, GPT-4o or Gemini from the model menu and add a key, then describe the part. You'll be able to export STL.",
-            "- **Offline** — I can still build and analyse four-bar and slider-crank mechanisms.",
+            "- **To generate one:** pick Claude, GPT-4o or Gemini from the model menu and add a key, then describe the part. You'll be able to export STL.",
+            "- **Offline:** I can still build and analyse four-bar and slider-crank mechanisms.",
           ].join("\n"),
         ].join("\n\n"),
       };
@@ -62,7 +62,7 @@ export class OfflineAgent implements AgentModel {
           ? buildFourBarReport(next.fourbar, 360, ctx.omega2)
           : buildSliderCrankReport(next.slider, 360, ctx.omega2);
       return {
-        text: `Done — ${intent.note}. Here's the updated analysis:\n\n${describeReport(report, ctx.unit)}`,
+        text: `Done: ${intent.note}. Here's the updated analysis:\n\n${describeReport(report, ctx.unit)}`,
         actions: [...intent.actions, { type: "run_analysis" }],
       };
     }
@@ -84,9 +84,9 @@ export class OfflineAgent implements AgentModel {
       text: [
         "Offline mode handles three things:",
         [
-          "- **Workspace commands** — *“make a crank-rocker”*, *“set coupler to 3.5”*, *“switch to slider-crank”*.",
-          "- **Explanations of the current analysis** — the results, the motion, or how to improve the design.",
-          "- **Common kinematics topics** — Grashof, transmission angle, DOF, coupler curves, synthesis.",
+          "- **Workspace commands:** *“make a crank-rocker”*, *“set coupler to 3.5”*, *“switch to slider-crank”*.",
+          "- **Explanations of the current analysis:** the results, the motion, or how to improve the design.",
+          "- **Common kinematics topics:** Grashof, transmission angle, DOF, coupler curves, synthesis.",
         ].join("\n"),
         "For open-ended questions, connect a Claude model from the selector above. What would you like to do?",
       ].join("\n\n"),

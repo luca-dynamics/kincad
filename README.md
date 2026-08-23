@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AI-assisted kinematics workspace for planar mechanism analysis &amp; synthesis</strong><br/>
-  Describe a linkage in plain English — the agent builds, animates, and explains it.<br/>
+  Describe a linkage in plain English. The agent builds, animates, and explains it.<br/>
   <em>Every number comes from the deterministic solver, never the language model.</em>
 </p>
 
@@ -32,17 +32,17 @@
   <tr>
     <td align="center" width="50%">
       <img src="docs/assets/screenshot-2d.png" alt="2D kinematic workspace" /><br/>
-      <sub><b>2D Workspace</b> — animated four-bar linkage with coupler curve &amp; live kinematic plots</sub>
+      <sub><b>2D Workspace</b>: animated four-bar linkage with coupler curve &amp; live kinematic plots</sub>
     </td>
     <td align="center" width="50%">
       <img src="docs/assets/screenshot-3d.png" alt="3D mechanism view" /><br/>
-      <sub><b>3D View</b> — real-time three.js render with coupler-curve trace and orbit controls</sub>
+      <sub><b>3D View</b>: real-time three.js render with coupler-curve trace and orbit controls</sub>
     </td>
   </tr>
   <tr>
     <td align="center" colspan="2">
       <img src="docs/assets/screenshot-cad.png" alt="Text-to-CAD" width="70%" /><br/>
-      <sub><b>Text-to-CAD</b> — describe a 3D part in chat; the agent generates and renders it instantly</sub>
+      <sub><b>Text-to-CAD</b>: describe a 3D part in chat; the agent generates and renders it instantly</sub>
     </td>
   </tr>
 </table>
@@ -51,7 +51,7 @@
 
 ## What it does
 
-KINCAD is a browser-based CAD-style workspace that combines a **deterministic kinematics engine** with a multi-model **AI engineering agent**. You describe what you want in the chat; the agent configures the workspace, runs the analysis, and explains the results — while all computed values stay grounded in the solver.
+KINCAD is a browser-based CAD-style workspace that combines a **deterministic kinematics engine** with a multi-model **AI engineering agent**. You describe what you want in the chat; the agent configures the workspace, runs the analysis, and explains the results. All computed values stay grounded in the solver.
 
 ### Key capabilities
 
@@ -77,7 +77,7 @@ git clone https://github.com/luca-dynamics/kincad.git
 cd kincad
 npm install
 
-# Optional — paste whichever API keys you have (BYOK also works in-app)
+# Optional: paste whichever API keys you have (BYOK also works in-app)
 cp .env.example .env
 
 npm run dev:full          # frontend on http://localhost:5173 · AI proxy on :8787
@@ -107,7 +107,7 @@ AI Agent (Gemini / Claude / GPT / Offline)
     │  interprets intent, emits workspace actions
     ▼
 Deterministic Engine (TypeScript)
-    │  Freudenstein vector-loop — closed-form position / velocity / acceleration
+    │  Freudenstein vector-loop: closed-form position / velocity / acceleration
     ▼
 React workspace  ←→  three.js (2D canvas · 3D view · CAD view)
 ```
@@ -121,10 +121,10 @@ The AI **never** invents a kinematic result. It only drives the workspace parame
 - **[React 19](https://react.dev)** + **[TypeScript](https://www.typescriptlang.org)** + **[Vite](https://vitejs.dev)**
 - **[Tailwind CSS v4](https://tailwindcss.com)**
 - **[three.js](https://threejs.org)** / **[@react-three/fiber](https://docs.pmnd.rs/react-three-fiber)** / **[@react-three/drei](https://github.com/pmndrs/drei)**
-- **[three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg)** — boolean CSG for text-to-CAD
-- **[react-markdown](https://github.com/remarkjs/react-markdown)** + KaTeX — rich chat rendering
-- **[Vitest](https://vitest.dev)** — unit tests for the kinematics engine
-- **Node.js + [Express](https://expressjs.com)** key-safe AI proxy — the same handler runs locally and as Vercel serverless functions
+- **[three-bvh-csg](https://github.com/gkjohnson/three-bvh-csg)**: boolean CSG for text-to-CAD
+- **[react-markdown](https://github.com/remarkjs/react-markdown)** + KaTeX: rich chat rendering
+- **[Vitest](https://vitest.dev)**: unit tests for the kinematics engine
+- **Node.js + [Express](https://expressjs.com)** key-safe AI proxy (the same handler runs locally and as Vercel serverless functions)
 
 ---
 
@@ -137,7 +137,7 @@ See [DEPLOY.md](DEPLOY.md) for full Vercel setup. In short: connect the repo, se
 ## Design principle
 
 > **The deterministic engine is the single source of truth for every numerical result.**
-> The AI assists, explains, and drives the workspace — it never invents numbers.
+> The AI assists, explains, and drives the workspace; it never invents numbers.
 
 ---
 

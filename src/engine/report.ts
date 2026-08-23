@@ -93,7 +93,7 @@ export function buildFourBarReport(link: FourBarLinkage, steps = 720, omega2 = 1
   const warnings: string[] = [];
   if (tA.value < POOR_TRANSMISSION_DEG)
     warnings.push(
-      `Transmission angle drops to ${tA.value.toFixed(1)}° near θ2 = ${tA.atTheta2Deg.toFixed(0)}° — below the ${POOR_TRANSMISSION_DEG}° guideline; the linkage transmits force poorly there and may bind.`,
+      `Transmission angle drops to ${tA.value.toFixed(1)}° near θ2 = ${tA.atTheta2Deg.toFixed(0)}°, below the ${POOR_TRANSMISSION_DEG}° guideline. The linkage transmits force poorly there and may bind.`,
     );
   if (!inputFullyRotates(link))
     warnings.push(
@@ -143,7 +143,7 @@ export function buildSliderCrankReport(link: SliderCrankLinkage, steps = 720, om
     );
   if (tA.value < POOR_TRANSMISSION_DEG)
     warnings.push(
-      `Transmission angle falls to ${tA.value.toFixed(1)}° near θ2 = ${tA.atTheta2Deg.toFixed(0)}° — high side thrust on the slider there.`,
+      `Transmission angle falls to ${tA.value.toFixed(1)}° near θ2 = ${tA.atTheta2Deg.toFixed(0)}°, giving high side thrust on the slider there.`,
     );
 
   return {

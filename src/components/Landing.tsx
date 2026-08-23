@@ -36,7 +36,7 @@ export function Landing({
         {/* 28px plus a first name wraps to three lines on a 375px phone, which pushes the composer
             below the fold — the one thing this screen exists to put in front of you. */}
         <h1 className="mb-2 text-center text-title font-semibold tracking-tight text-fg sm:text-display">
-          {greeting}{who} — let's analyze a mechanism
+          {greeting}{who}. Let's analyze a mechanism
         </h1>
 
         <p className="mb-8 text-center text-body text-muted">

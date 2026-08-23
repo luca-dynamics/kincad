@@ -143,7 +143,7 @@ export function exportReportPDF(
   // Per mechanism. This section used to print Freudenstein's equation for BOTH mechanisms, so a
   // slider-crank report documented a method it had not used and defined K₁…K₃ from an r₄ the
   // mechanism does not have.
-  h2("Analytical method — equations used");
+  h2("Analytical method", "equations used");
   if (report.kind === "fourbar") {
     para(
       "Position analysis: Vector-loop closure (Freudenstein, 1955). The mechanism is modelled " +
@@ -179,7 +179,7 @@ export function exportReportPDF(
     formula(["g = e − r₂ sin θ₂", { pad: 38 }, "s = √(r₃² − g²)"]);
     formula(["x = r₂ cos θ₂ + s", { pad: 38 }, "θ₃ = atan2(g, s)"]);
     para(
-      "The mechanism fails to assemble where |g| > r₃ — those crank angles are excluded from the " +
+      "The mechanism fails to assemble where |g| > r₃, so those crank angles are excluded from the " +
       "sweep rather than approximated, which is what the reachable-rotation check reports.",
     );
   }

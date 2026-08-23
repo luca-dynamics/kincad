@@ -49,7 +49,7 @@ export function Onboarding({ onComplete }: { onComplete: (name: string) => void 
                 <h1 className="mt-5 text-display font-semibold tracking-tight text-fg">Welcome to KINCAD</h1>
                 <p className="mt-2 text-body text-muted">
                   An AI-assisted CAD workspace for <span className="text-fg">kinematic analysis and synthesis of planar
-                  mechanisms</span> — four-bar and slider-crank. Describe a mechanism and the agent builds, animates and
+                  mechanisms</span> (four-bar and slider-crank). Describe a mechanism and the agent builds, animates and
                   analyses it, with every number from a deterministic solver.
                 </p>
               </div>

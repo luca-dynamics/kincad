@@ -108,7 +108,7 @@ export default function Panel({
                   mechanism on screen does not move. See units.ts. */}
               <ParamShell
                 label="Length unit"
-                title="Unit these dimensions are declared in — a label, not a conversion"
+                title="Unit these dimensions are declared in: a label, not a conversion"
               >
                 <SegToggle
                   value={state.unit}
@@ -127,7 +127,7 @@ export default function Panel({
 
             {/* Narrowing on `rep.kind` rather than `isFour`: it is the same discriminant, but this
                 way the report handed to `FourBarResults` is typed as a four-bar report. */}
-            <Section title="Results — live">
+            <Section title="Results (live)">
               {rep.kind === "fourbar" ? <FourBarResults state={state} rep={rep} /> : <SliderResults state={state} />}
             </Section>
 

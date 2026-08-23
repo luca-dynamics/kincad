@@ -55,8 +55,8 @@ export function ChatPanel({
         <IconButton
           title={
             autoApply
-              ? "Auto-apply is on — the agent's changes land immediately"
-              : "Auto-apply is off — the agent proposes, you approve"
+              ? "Auto-apply is on: the agent's changes land immediately"
+              : "Auto-apply is off: the agent proposes, you approve"
           }
           onClick={onToggleAutoApply}
           active={autoApply}

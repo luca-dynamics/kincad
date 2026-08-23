@@ -87,7 +87,7 @@ describe("parseIntent — the coupler point", () => {
   });
 
   it("quotes the angle back in the degrees the user typed, not in radians", () => {
-    // The note becomes "Done — set …" in the reply. `couplerPointAngle=0.8726646259971648` is
+    // The note becomes "Done: set …" in the reply. `couplerPointAngle=0.8726646259971648` is
     // technically what was stored and useless to read, which is why the note keeps the typed value.
     expect(parseIntent("cpl pt angle to 50", "fourbar").note).toBe("set couplerPointAngle=50°");
     expect(parseIntent("r1 to 5", "fourbar").note).toBe("set ground=5");

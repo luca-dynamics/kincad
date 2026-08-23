@@ -106,7 +106,7 @@ export function exportPartSheetPDF(model: CadModel, built: BuiltCad, snapshot?: 
       kv(p.label, `${p.value}${unit}${range}`);
     }
   } else {
-    para("This model has fixed literal dimensions — no named parameters were defined.");
+    para("This model has fixed literal dimensions; no named parameters were defined.");
   }
 
   divider();
@@ -125,7 +125,7 @@ export function exportPartSheetPDF(model: CadModel, built: BuiltCad, snapshot?: 
     "The solid is evaluated by constructive solid geometry: each leaf primitive is meshed, then the " +
     "union / difference / intersection nodes above it are applied pairwise with three-bvh-csg to " +
     "produce a single closed triangle mesh. Dimensions that reference a parameter are resolved from " +
-    "the table above at build time, so editing one rebuilds the part — the geometry shown, the mesh " +
+    "the table above at build time, so editing one rebuilds the part: the geometry shown, the mesh " +
     "exported and the figures on this sheet all come from the same evaluation.",
   );
   para(

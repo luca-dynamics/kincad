@@ -103,7 +103,7 @@ export function speechText(text: string): string {
     .replace(/[*_`#>|~^{}⚠]/g, "")                 // md symbols, LaTeX plumbing, warning glyph
     .replace(/\\[a-zA-Z]+/g, "")                   // latex commands like \le, \circ
     .replace(/([^\s.!?:;])[ \t]*\n+/g, "$1. ")     // one figure per sentence
-    .replace(/\s+—\s+/g, ", ")                     // "label — value" wants a comma's pause
+    .replace(/\s+—\s+/g, ", ")                     // cloud models write dashes; a comma is the pause
     .replace(/\s+/g, " ")
     .trim();
 }

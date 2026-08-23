@@ -79,7 +79,7 @@ export default function Viewport(p: Props) {
               <CadView model={p.state.cadModel} />
             </Suspense>
           ) : (
-            <Fallback label="No CAD model yet — ask the agent to generate one." />
+            <Fallback label="No CAD model yet. Ask the agent to generate one." />
           ))}
       </div>
 

@@ -72,7 +72,7 @@ function NavBtn({
       // `opacity-40` is the same disabled weight `Button` uses in ui.tsx, so a dead tab reads as
       // dead by the app's existing convention. Pointer events are left on, unlike `Button`'s
       // `disabled:pointer-events-none`, purely so the title still explains why.
-      title={disabled ? `${label} — nothing to show until a mechanism is on screen` : undefined}
+      title={disabled ? `${label}: nothing to show until a mechanism is on screen` : undefined}
       className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-micro transition-colors ${
         disabled ? "text-muted opacity-40" : active ? "text-accent" : "text-muted hover:text-fg"
       }`}

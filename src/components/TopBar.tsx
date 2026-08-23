@@ -174,7 +174,7 @@ export default function TopBar({
           <MenuItem
             key={f.id}
             icon={<Download className="h-4 w-4" />}
-            label={`${f.label} — ${f.hint}`}
+            label={`${f.label}: ${f.hint}`}
             onClick={() => onExportModel(f.id)}
           />
         ))}

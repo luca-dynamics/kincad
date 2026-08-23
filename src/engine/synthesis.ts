@@ -174,7 +174,7 @@ export function synthesizeFunctionGenerator(
     feasible: true,
     notes:
       "Function generator synthesised from 3 precision points via Freudenstein's equation, on " +
-      `the ${link.circuit} circuit — verified by analysis to pass through all three target ` +
+      `the ${link.circuit} circuit, verified by analysis to pass through all three target ` +
       `angles to within 1e-6 rad.${offsetNote}`,
     inputOffset,
     outputOffset,

@@ -5,13 +5,15 @@
 // THE OUTPUT IS MARKDOWN, AND THE RENDERER TREATS IT AS SUCH. components/chat/Markdown.tsx runs
 // this text through remark-gfm, so the separators matter as much as the words: a *single* newline
 // is a soft break and collapses to a space. These helpers used to build `•` bullets joined with
-// "\n", which meant the renderer received one run-on paragraph — "**Four-bar linkage —
+// "\n", which meant the renderer received one run-on paragraph — "**Four-bar linkage:
 // crank-rocker.** • Input: full 360° crank. • Transmission angle: 43.2°–136.8° …" — no matter how
 // well the bubble was styled. Real lists need `- ` and a blank line before them, so every block
 // below is joined with "\n\n" and every bullet starts with "- ".
 //
-// Labels are bold, figures are plain: the same label/value split the parameters dock uses. Figures
-// are deliberately NOT wrapped in backticks — that would give every number the inline-code pill.
+// Labels are bold and end with a colon, figures are plain: the same label/value split the
+// parameters dock uses. A colon rather than a dash, because these bullets are read as much as they
+// are skimmed, and "Input — full 360° crank" turns into a tic once four of them stack up. Figures
+// are deliberately NOT wrapped in backticks, which would give every number the inline-code pill.
 
 import type { AnalysisReport } from "../engine";
 import { perSec, perSec2, type LengthUnit } from "../units";
@@ -36,13 +38,13 @@ function warningBlock(warnings: string[]): string {
 export function describeReport(r: AnalysisReport, unit: LengthUnit): string {
   if (r.kind === "fourbar") {
     return [
-      `**Four-bar linkage — ${r.grashof.type}.**`,
+      `**Four-bar linkage: ${r.grashof.type}.**`,
       r.grashof.summary,
       [
-        `- **Input** — ${r.inputFullyRotates ? "full 360° crank" : `oscillates over ≈ ${r.reachableArcDeg.toFixed(0)}°`}`,
-        `- **Transmission angle** — ${r.transmission.min.value.toFixed(1)}°–${r.transmission.max.value.toFixed(1)}° (mean ${r.transmission.mean.toFixed(1)}°)`,
-        `- **Output ω₄** — ${r.omega4.min.value.toFixed(2)} → ${r.omega4.max.value.toFixed(2)} rad/s per rad/s of input`,
-        `- **Coupler-curve envelope** — ≈ ${r.couplerExtent.width.toFixed(2)} × ${r.couplerExtent.height.toFixed(2)} ${unit}`,
+        `- **Input:** ${r.inputFullyRotates ? "full 360° crank" : `oscillates over ≈ ${r.reachableArcDeg.toFixed(0)}°`}`,
+        `- **Transmission angle:** ${r.transmission.min.value.toFixed(1)}°–${r.transmission.max.value.toFixed(1)}° (mean ${r.transmission.mean.toFixed(1)}°)`,
+        `- **Output ω₄:** ${r.omega4.min.value.toFixed(2)} → ${r.omega4.max.value.toFixed(2)} rad/s per rad/s of input`,
+        `- **Coupler-curve envelope:** ≈ ${r.couplerExtent.width.toFixed(2)} × ${r.couplerExtent.height.toFixed(2)} ${unit}`,
       ].join("\n"),
       warningBlock(r.warnings),
     ].join("\n\n");
@@ -50,10 +52,10 @@ export function describeReport(r: AnalysisReport, unit: LengthUnit): string {
   return [
     `**Slider-crank mechanism.**`,
     [
-      `- **Crank** — ${r.inputFullyRotates ? "fully rotates" : "cannot fully rotate with this rod/offset"}`,
-      `- **Slider stroke** — ${r.stroke.toFixed(2)} ${unit}`,
-      `- **Slider velocity** — ${r.sliderVel.min.value.toFixed(2)} → ${r.sliderVel.max.value.toFixed(2)} ${perSec(unit)} per rad/s`,
-      `- **Peak acceleration** — ${Math.max(Math.abs(r.sliderAcc.min.value), Math.abs(r.sliderAcc.max.value)).toFixed(2)} ${perSec2(unit)}`,
+      `- **Crank:** ${r.inputFullyRotates ? "fully rotates" : "cannot fully rotate with this rod/offset"}`,
+      `- **Slider stroke:** ${r.stroke.toFixed(2)} ${unit}`,
+      `- **Slider velocity:** ${r.sliderVel.min.value.toFixed(2)} → ${r.sliderVel.max.value.toFixed(2)} ${perSec(unit)} per rad/s`,
+      `- **Peak acceleration:** ${Math.max(Math.abs(r.sliderAcc.min.value), Math.abs(r.sliderAcc.max.value)).toFixed(2)} ${perSec2(unit)}`,
     ].join("\n"),
     warningBlock(r.warnings),
   ].join("\n\n");
@@ -91,9 +93,9 @@ export function suggestImprovements(r: AnalysisReport): string {
     if (r.transmission.min.value < 40) tips.push("Reduce the offset or lengthen the rod to cut side thrust on the slider.");
   }
   if (!tips.length)
-    tips.push("Proportions look healthy — no rule-of-thumb violations. You could tune the coupler point to reshape the coupler curve.");
+    tips.push("Proportions look healthy, with no rule-of-thumb violations. You could tune the coupler point to reshape the coupler curve.");
   return [
-    "**Suggestions** — you confirm; the solver re-checks every change.",
+    "**Suggestions** (you confirm; the solver re-checks every change)",
     tips.map((t) => `- ${t}`).join("\n"),
   ].join("\n\n");
 }

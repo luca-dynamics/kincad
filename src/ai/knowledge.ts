@@ -30,9 +30,9 @@ export const TOPICS: Topic[] = [
     answer:
       "**Grashof's condition** tells you whether a four-bar linkage has a fully rotating link. " +
       "With the shortest link S, longest L, and the other two P and Q:\n\n" +
-      "- $S + L < P + Q$ — **Grashof**: at least one link makes full revolutions.\n" +
-      "- $S + L = P + Q$ — **change-point**: passes through collinear singularities, e.g. a parallelogram.\n" +
-      "- $S + L > P + Q$ — **non-Grashof**: every link only rocks.\n\n" +
+      "- $S + L < P + Q$ → **Grashof**: at least one link makes full revolutions.\n" +
+      "- $S + L = P + Q$ → **change-point**: passes through collinear singularities, e.g. a parallelogram.\n" +
+      "- $S + L > P + Q$ → **non-Grashof**: every link only rocks.\n\n" +
       "Which link rotates depends on which is shortest:\n\n" +
       "- shortest = ground → double-crank\n" +
       "- shortest = a side link → crank-rocker\n" +
@@ -53,9 +53,9 @@ export const TOPICS: Topic[] = [
       "For a planar mechanism, **Gruebler/Kutzbach** gives the mobility:\n\n" +
       "$$\nM = 3(n - 1) - 2j_1 - j_2\n$$\n\n" +
       "where:\n\n" +
-      "- $n$ — number of links, including ground\n" +
-      "- $j_1$ — lower pairs (pin/slider), 1 DOF each\n" +
-      "- $j_2$ — higher pairs (cam/gear contact), 2 DOF each\n\n" +
+      "- $n$: number of links, including ground\n" +
+      "- $j_1$: lower pairs (pin/slider), 1 DOF each\n" +
+      "- $j_2$: higher pairs (cam/gear contact), 2 DOF each\n\n" +
       "A four-bar has n = 4, j₁ = 4, j₂ = 0 → M = 1. One input fully determines the motion.",
   },
   {
@@ -63,8 +63,8 @@ export const TOPICS: Topic[] = [
     answer:
       "A **coupler curve** is the path traced by a point on the coupler (floating) link as the " +
       "mechanism moves.\n\n" +
-      "Four-bar coupler curves can be remarkably varied — symmetric, figure-eight, with cusps or " +
-      "straight-line segments — which is why four-bars are used for path generation. Move the " +
+      "Four-bar coupler curves can be remarkably varied (symmetric, figure-eight, with cusps or " +
+      "straight-line segments), which is why four-bars are used for path generation. Move the " +
       "coupler point (distance + angle from joint A) to reshape it.",
   },
   {
@@ -87,12 +87,12 @@ export const TOPICS: Topic[] = [
   {
     match: /slider.?crank|reciprocat/i,
     answer:
-      "A **slider-crank** converts rotation to reciprocating translation (or vice-versa) — the " +
+      "A **slider-crank** converts rotation to reciprocating translation (or vice-versa). It is the " +
       "basis of piston engines and pumps.\n\n" +
       "Key parameters:\n\n" +
       "- **crank** r₂\n" +
       "- **connecting rod** r₃\n" +
-      "- **offset** e — 0 for in-line\n\n" +
+      "- **offset** e (0 for in-line)\n\n" +
       "The crank rotates fully only if $r_3 \\ge e + r_2$. An offset makes the forward and return " +
       "strokes take unequal crank angles (quick-return behaviour).",
   },
@@ -103,7 +103,7 @@ export const TOPICS: Topic[] = [
       "generation*, **Freudenstein's equation**\n\n" +
       "$$\nK_1 \\cos\\theta_4 - K_2 \\cos\\theta_2 + K_3 = \\cos(\\theta_2 - \\theta_4)\n$$\n\n" +
       "lets you pick three precision points (input→output angle pairs) and solve a 3×3 linear " +
-      "system for the link ratios. The result must be verified by analysis — which this tool does " +
+      "system for the link ratios. The result must be verified by analysis, which this tool does " +
       "automatically.",
   },
   {
@@ -111,7 +111,7 @@ export const TOPICS: Topic[] = [
     answer:
       "A **quick-return mechanism** has a working stroke slower than its return stroke, useful in " +
       "shapers/saws.\n\n" +
-      "It arises from the time-ratio between the crank angles for the two strokes — created by an " +
+      "It arises from the time-ratio between the crank angles for the two strokes, created by an " +
       "offset slider-crank or an offset in a four-bar. The larger the asymmetry, the stronger the " +
       "quick-return effect.",
   },

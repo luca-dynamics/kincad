@@ -59,11 +59,11 @@ export function classifyGrashof(link: FourBarLinkage): GrashofResult {
   }
 
   const labels: Record<GrashofType, string> = {
-    "crank-rocker": "Grashof crank-rocker — input crank fully rotates, output rocks.",
-    "double-crank": "Grashof double-crank (drag-link) — both input and output fully rotate.",
-    "double-rocker": "Grashof double-rocker — coupler rotates; input and output oscillate.",
-    "change-point": "Change-point — s+l = p+q; passes through a collinear singular position.",
-    "triple-rocker": "Non-Grashof triple-rocker — no link makes a full revolution.",
+    "crank-rocker": "Grashof crank-rocker: input crank fully rotates, output rocks.",
+    "double-crank": "Grashof double-crank (drag-link): both input and output fully rotate.",
+    "double-rocker": "Grashof double-rocker: coupler rotates; input and output oscillate.",
+    "change-point": "Change-point: s+l = p+q; passes through a collinear singular position.",
+    "triple-rocker": "Non-Grashof triple-rocker: no link makes a full revolution.",
   };
 
   return {

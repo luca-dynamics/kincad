@@ -85,7 +85,7 @@ export function Composer({
           const { value } = await mammoth.extractRawText({ arrayBuffer });
           next.push({ id: crypto.randomUUID(), name: f.name, mime: f.type, kind: "document", text: value });
         } catch {
-          alert(`Could not read "${f.name}" — make sure it's a valid .docx file.`);
+          alert(`Could not read "${f.name}". Make sure it's a valid .docx file.`);
         }
         continue;
       }

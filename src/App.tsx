@@ -244,7 +244,7 @@ export default function App() {
       let prefix = "";
       if (!model.available) {
         prefix =
-          "_(That model needs an API key — none is configured, so I'm answering in offline mode. Add a server key or paste your own in the model menu.)_\n\n";
+          "_(That model needs an API key, and none is configured, so I'm answering in offline mode. Add a server key or paste your own in the model menu.)_\n\n";
         model = OFFLINE;
       }
 
@@ -263,7 +263,7 @@ export default function App() {
               const fallbackModel = fallbackId ? getModel(fallbackId) : null;
               if (fallbackModel && fallbackModel.available) {
                 prefix =
-                  `_⚡ ${activeModel.label} hit its quota limit — switched to **${fallbackModel.label}** automatically._\n\n` +
+                  `_⚡ ${activeModel.label} hit its quota limit, so I switched to **${fallbackModel.label}** automatically._\n\n` +
                   prefix;
                 setModelId(fallbackModel.id);
                 activeModel = fallbackModel;
@@ -271,7 +271,7 @@ export default function App() {
               }
               // No more fallbacks with keys — try offline as last resort
               prefix =
-                `_⚡ ${activeModel.label} hit its quota limit and no fallback model is available — answering in offline mode._\n\n` +
+                `_⚡ ${activeModel.label} hit its quota limit and no fallback model is available, so I'm answering in offline mode._\n\n` +
                 prefix;
               setModelId(OFFLINE.id);
               activeModel = OFFLINE;
@@ -612,7 +612,7 @@ export default function App() {
                   <TabEmpty
                     icon={Monitor}
                     title="No mechanism yet"
-                    detail="Ask the assistant to analyse a four-bar or slider-crank — or pick a quick start from the menu — and the workspace opens here."
+                    detail="Ask the assistant to analyse a four-bar or slider-crank, or pick a quick start from the menu, and the workspace opens here."
                     actionLabel="Ask the assistant"
                     onAction={() => setMobileTab("chat")}
                   />

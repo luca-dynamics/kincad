@@ -74,7 +74,7 @@ export function buildItems(actions: WorkspaceAction[], before?: TurnMeta["before
           kind: a.type,
           label: "ran analysis",
           detail:
-            "Position, velocity, acceleration and Grashof type — every value from the deterministic solver.",
+            "Position, velocity, acceleration and Grashof type: every value from the deterministic solver.",
         });
         break;
 

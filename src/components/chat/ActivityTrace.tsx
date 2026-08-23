@@ -112,7 +112,7 @@ export function AgentActivity({ modelLabel }: { modelLabel: string }) {
       </div>
       {ms >= SLOW_AFTER_MS && (
         <p className="kc-step pl-[22px] text-micro text-faint">
-          running engine tools — one reply can take several solver rounds
+          running engine tools (one reply can take several solver rounds)
         </p>
       )}
     </div>
@@ -183,7 +183,7 @@ export function ProposalCard({
 
       {moot ? (
         <p className="px-3 py-2 text-mini text-muted">
-          The workspace already matches this — there is nothing left to apply.
+          The workspace already matches this, so there is nothing left to apply.
         </p>
       ) : (
         <>
@@ -270,9 +270,9 @@ export function TurnTrace({
   // the numbers in this reply describe a geometry that was never built.
   const lapsed =
     approval === "discarded"
-      ? "You discarded this — the workspace was not changed. Any figures in the reply describe the proposed geometry."
+      ? "You discarded this, so the workspace was not changed. Any figures in the reply describe the proposed geometry."
       : approval === "superseded"
-        ? "Never applied — a later turn proposed different changes instead."
+        ? "Never applied: a later turn proposed different changes instead."
         : null;
 
   return (
@@ -324,7 +324,7 @@ export function TurnTrace({
           )}
           {meta?.fellBackFrom && (
             <p className="mt-1.5 border-t border-line pt-1.5 text-micro text-warn">
-              {meta.fellBackFrom} hit its quota — {meta.modelLabel} answered instead.
+              {meta.fellBackFrom} hit its quota, so {meta.modelLabel} answered instead.
             </p>
           )}
         </Card>
