@@ -51,10 +51,10 @@ const MAX_TOKENS = 8000;
  * `maxDuration` (Vercel Fluid Compute / any paid plan) to serialise and respond.
  *
  * Override with COPILOT_BUDGET_MS. Set it BELOW your real cap if you run on Vercel Hobby WITHOUT
- * Fluid Compute (~10s wall clock), where the 50s default would never fire before the platform kills
+ * Fluid Compute (~10s wall clock), where the 52s default would never fire before the platform kills
  * the function — e.g. COPILOT_BUDGET_MS=8500.
  */
-const BUDGET_MS = Number(process.env.COPILOT_BUDGET_MS) || 50_000;
+const BUDGET_MS = Number(process.env.COPILOT_BUDGET_MS) || 52_000;
 
 /**
  * Timeout for a single upstream model call, taken from the budget still remaining so no one call
@@ -63,7 +63,7 @@ const BUDGET_MS = Number(process.env.COPILOT_BUDGET_MS) || 50_000;
  * the whole window.
  */
 function callTimeout(deadline: number): number {
-  return Math.min(45_000, Math.max(6_000, deadline - Date.now()));
+  return Math.min(50_000, Math.max(6_000, deadline - Date.now()));
 }
 
 /**
@@ -172,6 +172,13 @@ async function runOpenAICompatible(
    * behaviour for every first-party vendor.
    */
   userAgent?: string,
+  /**
+   * Output ceiling (classic OpenAI `max_tokens`) for gateways that accept it, so a long prompt cannot
+   * draw an unbounded reply that runs past the serverless window and trips the per-call timeout. Left
+   * undefined for first-party OpenAI, whose gpt-5 reasoning models reject `max_tokens` (they want
+   * `max_completion_tokens`) — those calls stay exactly as they were.
+   */
+  maxTokens?: number,
 ): Promise<RunResult> {
   const actions: WorkspaceAction[] = [];
   const messages: unknown[] = [
@@ -211,7 +218,7 @@ async function runOpenAICompatible(
           "content-type": "application/json",
           ...(userAgent ? { "user-agent": userAgent } : {}),
         },
-        body: JSON.stringify({ model, messages, tools, tool_choice: "auto" }),
+        body: JSON.stringify({ model, messages, tools, tool_choice: "auto", ...(maxTokens ? { max_tokens: maxTokens } : {}) }),
       },
       callTimeout(deadline),
     );
@@ -319,6 +326,7 @@ export function runAgentRouter(
     system,
     imageKeys,
     process.env.AGENTROUTER_USER_AGENT,
+    MAX_TOKENS,
   );
 }
 
