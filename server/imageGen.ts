@@ -1,6 +1,16 @@
 // Image generation adapters for Gemini (Nano Banana / 2.0 Flash) and OpenAI (DALL-E 3 / gpt-image-1).
 // Returns a `data:image/png;base64,...` data URL, or throws on failure.
 
+import { fetchWithTimeout } from "./http.ts";
+
+/**
+ * Ceiling for a single image request. Image models are legitimately slow, but an unbounded call can
+ * hang until the serverless function is killed — and image generation runs INSIDE a tool call, so
+ * the copilot loop's own budget check (between rounds) never gets to intervene. Bounding each
+ * attempt here is what stops one stalled image model from taking the whole request down with it.
+ */
+const IMAGE_ATTEMPT_TIMEOUT_MS = 30_000;
+
 /** Try Gemini image generation models in priority order. */
 const GEMINI_IMAGE_MODELS = [
   "gemini-2.5-flash-preview-image-generation", // Nano Banana
@@ -12,14 +22,18 @@ export async function generateImageGemini(prompt: string, apiKey: string): Promi
   for (const model of GEMINI_IMAGE_MODELS) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
-        }),
-      });
+      const res = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+          }),
+        },
+        IMAGE_ATTEMPT_TIMEOUT_MS,
+      );
       if (!res.ok) {
         lastErr = `${model} ${res.status}: ${(await res.text()).slice(0, 200)}`;
         continue;
@@ -44,11 +58,15 @@ export async function generateImageOpenAI(prompt: string, apiKey: string): Promi
   let lastErr = "";
   for (const model of OPENAI_IMAGE_MODELS) {
     try {
-      const res = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-        body: JSON.stringify({ model, prompt, n: 1, size: "1024x1024", response_format: "b64_json" }),
-      });
+      const res = await fetchWithTimeout(
+        "https://api.openai.com/v1/images/generations",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+          body: JSON.stringify({ model, prompt, n: 1, size: "1024x1024", response_format: "b64_json" }),
+        },
+        IMAGE_ATTEMPT_TIMEOUT_MS,
+      );
       if (!res.ok) {
         lastErr = `${model} ${res.status}: ${(await res.text()).slice(0, 200)}`;
         continue;

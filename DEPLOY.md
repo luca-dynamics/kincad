@@ -69,8 +69,13 @@ from the model menu without any server key.
 ## Notes
 
 - **Function timeout:** the agent's tool loop can take several model round-trips. `api/copilot.ts`
-  requests `maxDuration: 60`. On the Hobby plan Vercel may cap this lower — if long requests 504, keep
-  prompts focused or upgrade the plan.
+  requests `maxDuration: 60`. On Hobby that 60s only applies with **Fluid Compute** enabled (Settings
+  : Functions); without it the wall clock is capped near 10s. The loop now stops itself a little
+  before its budget and returns whatever it already produced (the CAD part, the dimensions it set)
+  rather than letting the platform kill the request with a bodyless 504. That budget defaults to 50s;
+  if you stay on Hobby WITHOUT Fluid Compute, set `COPILOT_BUDGET_MS` below your real cap (e.g. `8500`)
+  so the early return fires before the platform does. Every upstream call is also individually
+  time-bounded, so one stalled provider or image model can no longer take the whole request down.
 - **Image attachments** are sent as base64 in the request body; very large images can exceed Vercel's
   serverless body limit. Keep uploads reasonably sized.
 - **Local dev** is unchanged: `npm run dev:full` (Vite + proxy), keys from `.env`.

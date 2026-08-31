@@ -2,6 +2,7 @@
 // engine-grounded tools (server/tools.ts), so model choice never changes the numbers.
 
 import { executeTool, TOOLS, type ImageKeys, type WorkingState, type WorkspaceAction } from "./tools.ts";
+import { fetchWithTimeout } from "./http.ts";
 
 export interface TurnImage {
   mime: string;
@@ -42,6 +43,42 @@ const MAX_ROUNDS = 8;
  */
 const MAX_TOKENS = 8000;
 
+/**
+ * Soft wall-clock budget for the whole tool loop, in ms. A serverless platform kills a function at
+ * its plan/`maxDuration` limit with a bodyless 504 — mid-round, so the user gets nothing, not even
+ * the CAD part the model already built. So the loop stops itself a little BEFORE that and returns
+ * the actions produced so far (see `timeLimitResult`). The default leaves headroom under the 60s
+ * `maxDuration` (Vercel Fluid Compute / any paid plan) to serialise and respond.
+ *
+ * Override with COPILOT_BUDGET_MS. Set it BELOW your real cap if you run on Vercel Hobby WITHOUT
+ * Fluid Compute (~10s wall clock), where the 50s default would never fire before the platform kills
+ * the function — e.g. COPILOT_BUDGET_MS=8500.
+ */
+const BUDGET_MS = Number(process.env.COPILOT_BUDGET_MS) || 50_000;
+
+/**
+ * Timeout for a single upstream model call, taken from the budget still remaining so no one call
+ * can overrun the loop deadline. Floored so a nearly-exhausted budget still makes a genuine attempt
+ * rather than aborting on arrival, and capped so the first call of a fresh budget can't monopolise
+ * the whole window.
+ */
+function callTimeout(deadline: number): number {
+  return Math.min(45_000, Math.max(6_000, deadline - Date.now()));
+}
+
+/**
+ * The reply when the loop stops for time rather than because the model finished. The actions
+ * gathered so far ARE returned, so whatever the model already did (set the dimensions, built the
+ * part) still lands in the workspace; the text just explains the early stop without an em-dash,
+ * per the project's house style.
+ */
+function timeLimitResult(actions: WorkspaceAction[]): RunResult {
+  const text = actions.length
+    ? "I stopped short of the time limit and applied the changes above. Ask me to continue and I'll pick up from here."
+    : "I stopped short of the time limit before I could finish. Try a more focused request, or split it into a few steps.";
+  return { text, actions };
+}
+
 // ── Anthropic (Claude) ───────────────────────────────────────────────────────
 export async function runAnthropic(
   model: string,
@@ -75,12 +112,18 @@ export async function runAnthropic(
   });
   const tools = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
 
+  const deadline = Date.now() + BUDGET_MS;
   for (let i = 0; i < MAX_ROUNDS; i++) {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model, max_tokens: MAX_TOKENS, system, messages, tools }),
-    });
+    if (Date.now() > deadline) return timeLimitResult(actions);
+    const res = await fetchWithTimeout(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model, max_tokens: MAX_TOKENS, system, messages, tools }),
+      },
+      callTimeout(deadline),
+    );
     if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = await res.json();
     // Push the assistant turn back VERBATIM. With thinking on, the reply carries signed thinking
@@ -156,16 +199,22 @@ async function runOpenAICompatible(
     function: { name: t.name, description: t.description, parameters: t.parameters },
   }));
 
+  const deadline = Date.now() + BUDGET_MS;
   for (let i = 0; i < MAX_ROUNDS; i++) {
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-        ...(userAgent ? { "user-agent": userAgent } : {}),
+    if (Date.now() > deadline) return timeLimitResult(actions);
+    const res = await fetchWithTimeout(
+      `${baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+          ...(userAgent ? { "user-agent": userAgent } : {}),
+        },
+        body: JSON.stringify({ model, messages, tools, tool_choice: "auto" }),
       },
-      body: JSON.stringify({ model, messages, tools, tool_choice: "auto" }),
-    });
+      callTimeout(deadline),
+    );
     if (!res.ok) {
       const detail = (await res.text()).slice(0, 300);
       // A One API / New API gateway answers `unauthorized_client_error` when it rejects the CLIENT
@@ -330,16 +379,22 @@ export async function runGemini(
   ];
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
+  const deadline = Date.now() + BUDGET_MS;
   for (let i = 0; i < MAX_ROUNDS; i++) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents,
-        tools,
-      }),
-    });
+    if (Date.now() > deadline) return timeLimitResult(actions);
+    const res = await fetchWithTimeout(
+      url,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents,
+          tools,
+        }),
+      },
+      callTimeout(deadline),
+    );
     if (!res.ok) throw new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const data = await res.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
