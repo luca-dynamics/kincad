@@ -166,7 +166,24 @@ async function runOpenAICompatible(
       },
       body: JSON.stringify({ model, messages, tools, tool_choice: "auto" }),
     });
-    if (!res.ok) throw new Error(`${vendor} ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 300);
+      // A One API / New API gateway answers `unauthorized_client_error` when it rejects the CLIENT
+      // rather than the credential. Passed through raw it reads exactly like a bad key, which sends
+      // whoever hits it off to re-issue a key that was never the problem. Measured against
+      // agentrouter.org with a valid key: a request carrying NO key at all draws the identical 401,
+      // so the key is not consulted before the client check. Only these gateways emit this error
+      // type, so keying off it cannot misfire on first-party OpenAI traffic through this same loop.
+      if (detail.includes("unauthorized_client_error")) {
+        throw new Error(
+          `${vendor} ${res.status}: the gateway rejected the CLIENT, not the key. It only answers ` +
+            `requests from an agent it recognises, and it returns this same 401 for a valid key, an ` +
+            `invalid key and no key. Set AGENTROUTER_USER_AGENT to an agent the gateway authorises ` +
+            `for your account. Gateway said: ${detail}`,
+        );
+      }
+      throw new Error(`${vendor} ${res.status}: ${detail}`);
+    }
     const data = await res.json();
     // A gateway can return HTTP 200 with an error envelope and no choices array. Reading
     // choices[0] blind would throw a TypeError, which surfaces to the user as a generic 502

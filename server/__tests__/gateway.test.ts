@@ -285,14 +285,98 @@ describe("failure modes are reported, not swallowed", () => {
     expect(res.status).toBe(429);
     expect((res.body as { quota?: boolean }).quota).toBe(true);
   });
+
+  // The gateway's own reply to a client it does not recognise. Verbatim from agentrouter.org.
+  const CLIENT_REJECTED = JSON.stringify({
+    error: { message: "unauthorized client detected, contact support for assistance at https://discord.gg/aYq5B4RW3" },
+    message: "UNAUTHENTICATED",
+    success: false,
+    type: "unauthorized_client_error",
+  });
+
+  it("explains a client rejection instead of passing off a 401 that reads like a bad key", async () => {
+    process.env.AGENTROUTER_API_KEY = KEY;
+    vi.stubGlobal("fetch", async () => new Response(CLIENT_REJECTED, { status: 401 }));
+    const res = await ask("agentrouter/claude-opus-5");
+    const text = JSON.stringify(res.body);
+
+    expect(res.status).toBe(502);
+    // Names the real cause and the lever that fixes it...
+    expect(text).toContain("rejected the CLIENT, not the key");
+    expect(text).toContain("AGENTROUTER_USER_AGENT");
+    // ...and still carries the gateway's own words, including where it says to go.
+    expect(text).toContain("unauthorized client detected");
+    expect(text).toContain("discord.gg");
+  });
+
+  it("does not mistake a client rejection for a quota error and retry down the chain", async () => {
+    // isQuotaError matches on substrings, so the rewritten message must not introduce one. A
+    // client rejection is not transient and every fallback would hit the identical gate.
+    process.env.AGENTROUTER_API_KEY = KEY;
+    vi.stubGlobal("fetch", async () => new Response(CLIENT_REJECTED, { status: 401 }));
+    const res = await ask("agentrouter/claude-opus-5");
+    expect(res.status).not.toBe(429);
+    expect((res.body as { quota?: boolean }).quota).toBeUndefined();
+  });
+
+  it("leaves an ordinary 401 alone rather than blaming the client gate for it", async () => {
+    process.env.AGENTROUTER_API_KEY = KEY;
+    vi.stubGlobal("fetch", async () =>
+      new Response(JSON.stringify({ error: { message: "invalid api key", type: "invalid_request_error" } }), { status: 401 }),
+    );
+    const res = await ask("agentrouter/claude-opus-5");
+    const text = JSON.stringify(res.body);
+    expect(text).toContain("invalid api key");
+    expect(text).not.toContain("AGENTROUTER_USER_AGENT");
+  });
 });
 
 describe("health reporting", () => {
-  it("lists the gateway once its key is set, and omits it otherwise", () => {
+  // Readiness is not key-presence. The gateway checks the client BEFORE the credential, so a key
+  // with no authorised agent is a provider that will 401 on first use — and reporting it as ready
+  // lights its three models up in the selector and sends the user into that 401.
+  it("a key alone is not ready, because the client gate has not been satisfied", () => {
     process.env.AGENTROUTER_API_KEY = KEY;
-    expect(healthPayload().providers.agentrouter).toBe(true);
-    delete process.env.AGENTROUTER_API_KEY;
+    delete process.env.AGENTROUTER_USER_AGENT;
+    delete process.env.AGENTROUTER_BASE_URL;
     expect(healthPayload().providers.agentrouter).toBe(false);
+  });
+
+  it("key plus an authorised agent is ready", () => {
+    process.env.AGENTROUTER_API_KEY = KEY;
+    process.env.AGENTROUTER_USER_AGENT = "some-authorised-agent/1.0";
+    expect(healthPayload().providers.agentrouter).toBe(true);
+  });
+
+  it("an agent without a key is still not ready", () => {
+    delete process.env.AGENTROUTER_API_KEY;
+    process.env.AGENTROUTER_USER_AGENT = "some-authorised-agent/1.0";
+    expect(healthPayload().providers.agentrouter).toBe(false);
+  });
+
+  it("a key alone IS ready when pointed at a gateway that does not gate on the client", () => {
+    // OpenRouter, LiteLLM and friends authenticate on the key. Demanding an agent string there
+    // would hide models that work perfectly well.
+    process.env.AGENTROUTER_API_KEY = KEY;
+    delete process.env.AGENTROUTER_USER_AGENT;
+    for (const base of ["https://openrouter.ai/api/v1", "http://localhost:4000/v1", "https://gateway.internal/v1/"]) {
+      process.env.AGENTROUTER_BASE_URL = base;
+      expect(healthPayload().providers.agentrouter, base).toBe(true);
+    }
+  });
+
+  it("still demands an agent for agentrouter.org spelt any of the ways it can be spelt", () => {
+    process.env.AGENTROUTER_API_KEY = KEY;
+    delete process.env.AGENTROUTER_USER_AGENT;
+    for (const base of [
+      "https://agentrouter.org/v1",
+      "https://api.agentrouter.org/v1",
+      "http://agentrouter.org:8080/v1",
+      "https://AgentRouter.org/v1/",
+    ]) {
+      process.env.AGENTROUTER_BASE_URL = base;
+      expect(healthPayload().providers.agentrouter, base).toBe(false);
+    }
   });
 
   it("advertises the gateway models under the gateway provider", () => {

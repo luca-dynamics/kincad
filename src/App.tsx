@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Group, Panel as RPanel, Separator, usePanelRef } from "react-resizable-panels";
 import { useMobile } from "./hooks/useMobile";
 import { MobileNav, type MobileTab } from "./components/MobileNav";
@@ -51,11 +51,29 @@ import { loadProfile, saveProfile } from "./store/user";
  */
 const MECHANISM_TABS = ["view", "insight", "params"] as const;
 
+/**
+ * Write a patch into the last message *only while it is still the pending one a reveal appended*.
+ * Every reveal tick and the final commit go through here, so a transcript swapped out from under a
+ * running timer — New chat, or opening another conversation — is left untouched: the tail is no
+ * longer ours the instant it stops being `pending`.
+ */
+function patchPending(messages: ChatMessage[], patch: Partial<ChatMessage>): ChatMessage[] {
+  const i = messages.length - 1;
+  if (i < 0 || !messages[i].pending) return messages;
+  const next = messages.slice();
+  next[i] = { ...next[i], ...patch };
+  return next;
+}
+
 export default function App() {
   const [state, setState] = useState<WorkspaceState>(INITIAL_STATE);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [modelId, setModelId] = useState("offline");
   const [busy, setBusy] = useState(false);
+  // A reply is revealing incrementally into its bubble. Distinct from `busy` (the model actually
+  // working): `busy` drives the live loader; `streaming` only locks the composer, because the
+  // answer is already final and being paced onto the screen — see send() for the honesty note.
+  const [streaming, setStreaming] = useState(false);
   const [started, setStarted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false); // collapsed by default; user expands
   const [viewMode, setViewMode] = useState<ViewMode>("2d");
@@ -127,6 +145,9 @@ export default function App() {
   // Auto-save the active conversation (debounced) whenever its content changes.
   useEffect(() => {
     if (!currentId || !started) return;
+    // Don't persist mid-reveal: the transcript's tail is a growing fragment. When the reveal ends
+    // it flips `streaming` false, which re-runs this effect and saves the settled, full content.
+    if (streaming) return;
     const t = setTimeout(() => {
       const existing = getConversation(currentId);
       if (!existing) return;
@@ -141,7 +162,7 @@ export default function App() {
       setConversations(loadConversations());
     }, 500);
     return () => clearTimeout(t);
-  }, [messages, state.kind, state.fourbar, state.slider, state.cadModel, viewMode, modelId, currentId, started]);
+  }, [messages, state.kind, state.fourbar, state.slider, state.cadModel, viewMode, modelId, currentId, started, streaming]);
 
   const patch = useCallback((p: Partial<WorkspaceState>) => setState((s) => ({ ...s, ...p })), []);
   const patchFourBar = useCallback(
@@ -193,6 +214,53 @@ export default function App() {
     setSidebarOpen(false);
     setMobileTab("view");
   }, []);
+
+  // ── Incremental reveal ─────────────────────────────────────────────────────────────────
+  // Holds the active reveal timer so it can be torn down: on unmount, and whenever the transcript
+  // is replaced (New chat / open conversation), before a queued tick can write into the wrong one.
+  const revealRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopReveal = useCallback(() => {
+    if (revealRef.current != null) {
+      clearInterval(revealRef.current);
+      revealRef.current = null;
+    }
+    setStreaming(false);
+  }, []);
+
+  useEffect(() => () => stopReveal(), [stopReveal]);
+
+  /**
+   * Reveal an assistant reply word by word into the pending bubble it was appended to. This paces
+   * the DISPLAY of text that is already final and complete — it makes no live-generation claim and
+   * invents no content: every token shown is the reply the engine-grounded turn already returned,
+   * and the elapsed time in the trace is the real turn duration, fixed when the reply arrived. (The
+   * live loader, which reports genuine model progress, is governed by `busy` and is already gone by
+   * the time this runs.) `full` is committed verbatim on the last tick, so the rendered markdown is
+   * always the exact reply, never a fragment left mid-parse.
+   */
+  const revealText = useCallback(
+    (full: string) => {
+      // Tokenise on word boundaries (a word plus its trailing whitespace) so a tick never splits a
+      // word and the markdown stays parseable at every step. Pace ≈ brisk reading speed, floored so
+      // a one-liner still animates and capped so a long report never crawls.
+      const tokens = full.match(/\S+\s*/g) ?? [full];
+      const TICK_MS = 28;
+      const targetMs = Math.min(1400, Math.max(450, tokens.length * 22));
+      const perTick = Math.max(1, Math.ceil(tokens.length / Math.max(1, Math.round(targetMs / TICK_MS))));
+      let shown = 0;
+      const step = () => {
+        shown = Math.min(tokens.length, shown + perTick);
+        const done = shown >= tokens.length;
+        // Commit `full` (not the re-joined slice) on the final tick, and drop `pending` there.
+        setMessages((m) => patchPending(m, done ? { content: full, pending: false } : { content: tokens.slice(0, shown).join("") }));
+        if (done) stopReveal();
+      };
+      step(); // seed the first chunk synchronously, so the bubble never flashes empty
+      if (shown < tokens.length) revealRef.current = setInterval(step, TICK_MS);
+    },
+    [stopReveal],
+  );
 
   const send = useCallback(
     async (text: string, attachments?: Attachment[]) => {
@@ -310,26 +378,38 @@ export default function App() {
 
         const approval: ApprovalState | undefined = propose ? "pending" : visible ? "auto" : undefined;
 
-        setMessages((m) => [
-          // A new proposal lapses any older one — two live Apply buttons would be ambiguous
-          // about which wins. A turn that merely answered a question leaves it standing.
-          ...(propose ? supersedePending(m) : m),
-          {
-            role: "assistant",
-            content: prefix + reply.text,
-            actions: reply.actions,
-            approval,
-            meta: {
-              modelLabel: activeModel.label,
-              // `model` is the model the turn started with; if the quota fallback swapped it out,
-              // say so rather than silently crediting the answer to the wrong one.
-              fellBackFrom: activeModel.id !== model.id ? model.label : undefined,
-              elapsedMs: Date.now() - t0,
-              // Pre-turn linkages — what the trace diffs each action's new values against.
-              before,
-            },
+        const assistant: ChatMessage = {
+          role: "assistant",
+          content: prefix + reply.text,
+          actions: reply.actions,
+          approval,
+          meta: {
+            modelLabel: activeModel.label,
+            // `model` is the model the turn started with; if the quota fallback swapped it out,
+            // say so rather than silently crediting the answer to the wrong one.
+            fellBackFrom: activeModel.id !== model.id ? model.label : undefined,
+            // Real wall-clock model time, fixed here — the reveal below never inflates it.
+            elapsedMs: Date.now() - t0,
+            // Pre-turn linkages — what the trace diffs each action's new values against.
+            before,
           },
-        ]);
+        };
+
+        // A new proposal lapses any older one — two live Apply buttons would be ambiguous about
+        // which wins. A turn that merely answered a question leaves it standing.
+        const reduceMotion =
+          typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+        if (reduceMotion || assistant.content.length === 0) {
+          // Nothing to pace — land the whole reply at once (respects the OS "reduce motion" setting).
+          setMessages((m) => [...(propose ? supersedePending(m) : m), assistant]);
+        } else {
+          // Append an empty pending shell, then fill it on a timer. The bubble withholds its action
+          // row, proposal card and trace until `pending` clears, so the reply reads as it arrives.
+          setMessages((m) => [...(propose ? supersedePending(m) : m), { ...assistant, content: "", pending: true }]);
+          setStreaming(true);
+          revealText(assistant.content);
+        }
       } catch (err) {
         setMessages((m) => [
           ...m,
@@ -353,6 +433,7 @@ export default function App() {
       // had just un-gated, or vice versa.
       profile.autoApply,
       applyToWorkspace,
+      revealText,
     ],
   );
 
@@ -380,6 +461,7 @@ export default function App() {
   }, [profile]);
 
   const newChat = () => {
+    stopReveal();
     setMessages([]);
     setCurrentId(null);
     setStarted(false);
@@ -390,6 +472,7 @@ export default function App() {
     setMobileTab("chat");
   };
   const quickStart = (k: MechanismKind) => {
+    stopReveal();
     setMessages([]);
     setCurrentId(null);
     setState({ ...INITIAL_STATE, kind: k });
@@ -403,6 +486,7 @@ export default function App() {
   const openConversation = (id: string) => {
     const c = getConversation(id);
     if (!c) return;
+    stopReveal();
     setCurrentId(id);
     setMessages(c.messages);
     setModelId(c.modelId);
@@ -539,6 +623,7 @@ export default function App() {
   const chatProps = {
     messages,
     busy,
+    streaming,
     modelId,
     onModelChange: setModelId,
     onSend: send,
@@ -597,7 +682,7 @@ export default function App() {
         {/* Main content area — switches on mobileTab */}
         <div className="min-h-0 flex-1 overflow-hidden">
           {!started ? (
-            <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy} />
+            <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy || streaming} />
           ) : (
             <>
               <div className={pane("chat")}>
@@ -674,7 +759,7 @@ export default function App() {
 
       {!started ? (
         <main className="flex min-w-0 flex-1 flex-col">
-          <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy} />
+          <Landing name={profile.name} modelId={modelId} onModelChange={setModelId} onSend={send} busy={busy || streaming} />
         </main>
       ) : !hasMechanism ? (
         <main className="min-w-0 flex-1">

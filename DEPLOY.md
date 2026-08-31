@@ -44,14 +44,19 @@ suffix, and their quota fallback stays inside the gateway so a rate limit never 
 request to a different vendor's key.
 
 **If every AgentRouter call returns 401 with a key you know is good**, the key is not the problem:
-the gateway also checks *which client* is asking, and answers any `User-Agent` it does not recognise
-with `401 {"type":"unauthorized_client_error"}` — the identical reply it gives an invalid key or no
-key at all, so the error itself tells you nothing. Set `AGENTROUTER_USER_AGENT` to the agent string
-AgentRouter authorises for your key. It has no default on purpose: the value names a client, and the
-strings observed to pass belong to other vendors' tools, so shipping one would make KINCAD claim to
-be software it is not — and would break the moment the gateway tightened the check. Unset, KINCAD
-sends no override and the gateway models stay unreachable; the first-party providers above are
-unaffected either way.
+the gateway also checks *which client* is asking, and it does so before it looks at the credential.
+Any `User-Agent` it does not recognise is answered `401 {"type":"unauthorized_client_error"}`, and a
+request carrying no key at all draws the identical reply, so the error says nothing about your key.
+Set `AGENTROUTER_USER_AGENT` to the agent string AgentRouter authorises for your account; the 401
+body names a support channel for arranging one. It has no default on purpose: the value names a
+client, and the strings observed to pass belong to other vendors' tools, so shipping one would make
+KINCAD claim to be software it is not, and would break the moment the gateway tightened the check.
+
+Unset, the `· AgentRouter` models are **left out of the model menu even with a valid key**, because a
+key alone cannot get past the client gate and listing them would only offer a choice that 401s. The
+variable is not needed when `AGENTROUTER_BASE_URL` points at a gateway that authenticates on the key
+alone (OpenRouter, LiteLLM, a self-hosted One API) — those are listed on the key by itself. The
+first-party providers above are unaffected either way.
 
 Apply them to **Production** (and Preview if you want). Redeploy after adding.
 

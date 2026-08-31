@@ -7,6 +7,7 @@ import type { Attachment, ChatMessage, TurnMeta, WorkspaceAction } from "../ai/t
 export function ChatPanel({
   messages,
   busy,
+  streaming,
   modelId,
   onModelChange,
   onSend,
@@ -21,6 +22,8 @@ export function ChatPanel({
 }: {
   messages: ChatMessage[];
   busy: boolean;
+  /** A reply is revealing incrementally. Locks the composer without showing the live loader. */
+  streaming?: boolean;
   modelId: string;
   onModelChange: (id: string) => void;
   onSend: (text: string, attachments?: Attachment[]) => void;
@@ -88,7 +91,9 @@ export function ChatPanel({
         />
 
         <div className="border-t border-line p-3">
-          <Composer modelId={modelId} onModelChange={onModelChange} onSend={onSend} busy={busy} />
+          {/* The loader tracks real model work (`busy`); the composer is also held shut while a
+              reply is still revealing (`streaming`), so a second turn can't race the first onto screen. */}
+          <Composer modelId={modelId} onModelChange={onModelChange} onSend={onSend} busy={busy || !!streaming} />
           <p className="mt-2 px-1 text-center text-micro text-faint">
             Numbers come from the deterministic solver · the agent explains & drives the workspace
           </p>

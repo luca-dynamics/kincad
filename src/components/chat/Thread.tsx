@@ -80,6 +80,21 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/**
+ * Typewriter cursor shown at the tail of a reply while it is still revealing. Purely a "more is
+ * coming" affordance for the incremental display in App.send(); it carries no state and reports
+ * nothing about the model — the reply it trails is already complete. Falls still under
+ * `prefers-reduced-motion` (where the reveal is skipped and this never mounts anyway).
+ */
+function StreamCaret() {
+  return (
+    <span
+      aria-hidden
+      className="ml-0.5 inline-block h-[0.95em] w-[2px] translate-y-[2px] animate-pulse rounded-full bg-accent align-text-bottom motion-reduce:animate-none"
+    />
+  );
+}
+
 function Bubble({
   msg,
   id,
@@ -116,7 +131,7 @@ function Bubble({
             )}
           </div>
         )}
-        {msg.content &&
+        {(msg.content || msg.pending) &&
           (isUser ? (
             <div className="whitespace-pre-wrap rounded-xl bg-accent/12 px-3.5 py-2.5 text-body text-fg">
               {msg.content}
@@ -126,11 +141,13 @@ function Bubble({
             // stacked directly beneath it.
             <Card className="px-3.5 py-2.5">
               <Markdown>{msg.content}</Markdown>
+              {msg.pending && <StreamCaret />}
             </Card>
           ))}
         {/* Action row. Both roles get Copy; the rest is the agent's, and a user bubble's row is
-            right-aligned under its own right-aligned bubble. */}
-        {msg.content && (
+            right-aligned under its own right-aligned bubble. Withheld while a reply is still
+            revealing — Copy/Export/Listen against a half-shown answer would hand back a fragment. */}
+        {msg.content && !msg.pending && (
           <div className={`mt-1 flex items-center gap-1 ${isUser ? "justify-end" : ""}`}>
             <CopyButton text={msg.content} />
             {!isUser && tts.supported && (
@@ -174,8 +191,9 @@ function Bubble({
             )}
           </div>
         )}
-        {/* Inline generated images */}
-        {msg.actions?.filter((a) => a.type === "generated_image").map((a, i) =>
+        {/* Inline generated images — held back until the reply settles, like the trace below. */}
+        {!msg.pending &&
+          msg.actions?.filter((a) => a.type === "generated_image").map((a, i) =>
           a.type === "generated_image" ? (
             <div key={i} className="mt-2">
               <img
@@ -190,8 +208,9 @@ function Bubble({
           ) : null,
         )}
         {/* An undecided proposal is interactive and diffed against live state; everything else
-            is retrospective — chips collapsed, full step trace on expand. */}
-        {!isUser &&
+            is retrospective — chips collapsed, full step trace on expand. Both wait until the
+            reply has finished revealing, so the Apply button doesn't appear under half a sentence. */}
+        {!isUser && !msg.pending &&
           (msg.approval === "pending" ? (
             <ProposalCard
               actions={msg.actions ?? []}

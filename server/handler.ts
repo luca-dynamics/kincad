@@ -16,6 +16,25 @@ export function serverKey(p: Provider): string | undefined {
   return undefined;
 }
 
+/**
+ * Is the gateway actually usable, not merely keyed?
+ *
+ * agentrouter.org gates on client identity before it looks at the credential: every request whose
+ * agent it does not recognise draws `401 unauthorized_client_error`, and a request with no key at
+ * all draws the same one (measured). So a key on its own is not readiness, and reporting it as
+ * readiness is worse than reporting nothing — it lights the three gateway models up in the selector
+ * and walks the user into a 401 that names the wrong cause.
+ *
+ * A different OpenAI-compatible gateway behind AGENTROUTER_BASE_URL (OpenRouter, LiteLLM, One API…)
+ * authenticates on the key alone, so pointing away from agentrouter.org is readiness by itself.
+ */
+export function agentRouterReady(): boolean {
+  if (!serverKey("agentrouter")) return false;
+  const base = process.env.AGENTROUTER_BASE_URL?.trim();
+  const atDefaultHost = !base || /(^|\/\/)([^/]*\.)?agentrouter\.org(\/|$|:)/i.test(base);
+  return atDefaultHost ? !!process.env.AGENTROUTER_USER_AGENT?.trim() : true;
+}
+
 export function healthPayload() {
   return {
     service: "kincad-copilot",
@@ -23,7 +42,7 @@ export function healthPayload() {
       anthropic: !!serverKey("anthropic"),
       openai: !!serverKey("openai"),
       google: !!serverKey("google"),
-      agentrouter: !!serverKey("agentrouter"),
+      agentrouter: agentRouterReady(),
     },
     models: MODELS,
   };
