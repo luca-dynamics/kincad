@@ -3,6 +3,7 @@
 
 import { lazy, Suspense } from "react";
 import TopBar, { type PanelToggles, type ViewMode } from "./TopBar";
+import { ErrorBoundary } from "./ErrorBoundary";
 import Workspace from "./Workspace";
 import Plots from "./Plots";
 import type { WorkspaceState } from "../state";
@@ -69,15 +70,19 @@ export default function Viewport(p: Props) {
           />
         )}
         {p.viewMode === "3d" && (
-          <Suspense fallback={<Fallback label="loading 3D view…" />}>
-            <ThreeView state={p.state} onSetTheta2={p.onSetTheta2} />
-          </Suspense>
+          <ErrorBoundary label="Couldn't load the 3D view.">
+            <Suspense fallback={<Fallback label="loading 3D view…" />}>
+              <ThreeView state={p.state} onSetTheta2={p.onSetTheta2} />
+            </Suspense>
+          </ErrorBoundary>
         )}
         {isCad &&
           (p.state.cadModel ? (
-            <Suspense fallback={<Fallback label="building CAD model…" />}>
-              <CadView model={p.state.cadModel} />
-            </Suspense>
+            <ErrorBoundary label="Couldn't load the CAD view.">
+              <Suspense fallback={<Fallback label="building CAD model…" />}>
+                <CadView model={p.state.cadModel} />
+              </Suspense>
+            </ErrorBoundary>
           ) : (
             <Fallback label="No CAD model yet. Ask the agent to generate one." />
           ))}
