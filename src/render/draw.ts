@@ -17,11 +17,18 @@ export function drawGrid(
   view: View,
   pal: Palette,
 ) {
+  // A degenerate view freezes the tab. The two loops below only exit when a screen coordinate walks
+  // off the canvas, so if `view.scale` is non-positive or non-finite (a canvas measured at ~0 size
+  // during a pane transition yields exactly that — see fitView), `step` comes out 0/NaN, the
+  // coordinate never advances, and the loop spins forever. Nothing sensible to draw then, so bail.
+  if (!Number.isFinite(view.scale) || view.scale <= 0) return;
+
   const target = 60;
   const raw = target / view.scale;
   const pow = Math.pow(10, Math.floor(Math.log10(raw)));
   const candidates = [1, 2, 5, 10].map((m) => m * pow);
   const step = candidates.find((c) => c * view.scale >= 40) ?? candidates[candidates.length - 1];
+  if (!Number.isFinite(step) || step <= 0) return; // belt-and-braces: keep the loops bounded
 
   ctx.lineWidth = 1;
   const originS = worldToScreen({ x: 0, y: 0 }, view);

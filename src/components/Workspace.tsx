@@ -167,7 +167,11 @@ export default function Workspace({
       last = now;
       const cv = canvasRef.current;
       const s = stateRef.current;
-      if (cv && viewRef.current) {
+      // Skip the frame until the canvas has a real size. A just-mounted or just-shown canvas can
+      // measure 0×0 for a frame or two (a pane switching from display:none, layout not settled);
+      // sizing the backing store to 0 and fitting to a 0-wide box both feed the degenerate-view
+      // path. The ResizeObserver refits the instant a real size lands.
+      if (cv && viewRef.current && cv.clientWidth > 0 && cv.clientHeight > 0) {
         // size to device pixels
         const dpr = window.devicePixelRatio || 1;
         const w = cv.clientWidth;

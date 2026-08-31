@@ -71,7 +71,12 @@ export function fitView(
   // NEGATIVE and the fit comes back mirrored and off-screen. Cap it at a fraction of each side.
   const mx = Math.max(4, Math.min(margin, width * 0.15));
   const my = Math.max(4, Math.min(margin, height * 0.15));
-  const scale = Math.min((width - 2 * mx) / w, (height - 2 * my) / h);
+  // Floor the usable span at 1px. A canvas measured mid-transition (a pane switching from
+  // display:none, a width animation, layout not yet settled) reports ~0, where `width - 2 * mx`
+  // goes NEGATIVE and the fit comes back with a negative scale — which downstream (drawGrid) turns
+  // into a NaN grid step and an unbounded loop that freezes the tab. Kept positive here; the real
+  // size arrives a frame later via the ResizeObserver and refits properly.
+  const scale = Math.min(Math.max(width - 2 * mx, 1) / w, Math.max(height - 2 * my, 1) / h);
   const midX = (minX + maxX) / 2;
   const midY = (minY + maxY) / 2;
   return {

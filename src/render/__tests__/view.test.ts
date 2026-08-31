@@ -97,6 +97,23 @@ describe("fitView — the swept envelope, not one pose", () => {
     expect(poisoned).toEqual(clean);
   });
 
+  it("returns a positive, finite scale even when the canvas is measured at zero size", () => {
+    // A pane switching from display:none, or a canvas whose layout has not settled, reports
+    // clientWidth/Height of ~0 for a frame or two. `width - 2 * margin` then goes negative and the
+    // old fit came back with a NEGATIVE scale, which made drawGrid's grid step NaN and spun an
+    // unbounded loop that froze the tab. The fit must stay positive and finite at any size.
+    for (const [w, h] of [
+      [0, 0],
+      [1, 1],
+      [8, 8],
+      [7, 400],
+    ]) {
+      const view = fitView(fourBarPoints(CLIPPED), w, h);
+      expect(Number.isFinite(view.scale)).toBe(true);
+      expect(view.scale).toBeGreaterThan(0);
+    }
+  });
+
   it("centres the extent it was given", () => {
     const view = fitView([{ x: 0, y: 0 }, { x: 4, y: 0 }], W, H);
     const mid = worldToScreen({ x: 2, y: 0 }, view);
