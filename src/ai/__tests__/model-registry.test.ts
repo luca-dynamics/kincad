@@ -92,8 +92,9 @@ describe("provider tables are total", () => {
   });
 
   it("every provider has at least one model", () => {
-    // A provider with a label but no models renders an empty, key-prompting section in the model
-    // menu (which derives its sections from PROVIDER_LABEL).
+    // Keep every declared provider backed by a model. The menu now skips a provider whose models
+    // are all unlisted (see the "picker listing" block below and ModelSelect), but a provider with
+    // no models at all is a label that buys nothing and only muddies providerOf and the tables.
     for (const p of providers) {
       expect(MODELS.filter((m) => m.provider === p).length).toBeGreaterThan(0);
     }
@@ -153,5 +154,28 @@ describe("fallback chain integrity", () => {
       }
       expect(path[path.length - 1], `${p} chain: ${path.join(" -> ")}`).toBe("offline");
     }
+  });
+});
+
+describe("picker listing", () => {
+  it("unlisted models stay routable — only their visibility changes", () => {
+    // `listed: false` hides a model from the selector; it must NOT drop out of routing, or a saved
+    // conversation pinned to it would come back as an unknown model and 400 on the next send.
+    const unlisted = MODELS.filter((m) => m.listed === false);
+    expect(unlisted.length).toBeGreaterThan(0);
+    for (const m of unlisted) expect(providerOf(m.id)).toBe(m.provider);
+  });
+
+  it("shows only providers that have a listed model, hiding the rest", () => {
+    // ModelSelect draws a provider's section only when it has ≥1 listed model, so a provider we
+    // have not usably keyed vanishes instead of rendering an empty, key-prompting box. Anthropic
+    // (no credit) and OpenAI (rejected key) are hidden for the demo; Google and the gateway remain.
+    const shown = (Object.keys(PROVIDER_LABEL) as Provider[]).filter((p) =>
+      MODELS.some((m) => m.provider === p && m.listed !== false),
+    );
+    expect(shown).toContain("google");
+    expect(shown).toContain("agentrouter");
+    expect(shown).not.toContain("anthropic");
+    expect(shown).not.toContain("openai");
   });
 });

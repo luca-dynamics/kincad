@@ -7,6 +7,14 @@ export interface ModelInfo {
   id: string;
   label: string;
   provider: Provider;
+  /**
+   * Whether the model appears in the picker. Omit for the normal case (listed). Set `false` to hide
+   * a model from the selector while leaving it fully routable: `providerOf`, the fallback chain and
+   * any saved conversation pinned to it still resolve. Used for providers we have not usably keyed
+   * for the demo, so their models would otherwise render as dead, key-prompting rows. A provider
+   * whose every model is unlisted drops out of the menu entirely (see ModelSelect).
+   */
+  listed?: boolean;
 }
 
 /**
@@ -24,21 +32,24 @@ export const GATEWAY_PREFIX = "agentrouter/";
 // NOTE: provider model ids change often. If a model errors with "model not found",
 // update its id here to one your key supports (see each provider's models docs).
 export const MODELS: ModelInfo[] = [
-  // Anthropic — Claude 5 family. Haiku 4.5 stays the budget tier (no Haiku 5 yet), pinned to
-  // its dated id because that one is known-good against a plain BYOK key.
-  { id: "claude-opus-5", label: "Claude Opus 5", provider: "anthropic" },
-  { id: "claude-sonnet-5", label: "Claude Sonnet 5", provider: "anthropic" },
-  { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", provider: "anthropic" },
-  // OpenAI — GPT-5.x (current as of mid-2026); GPT-5 mini is the budget tier
-  { id: "gpt-5.5", label: "GPT-5.5", provider: "openai" },
-  { id: "gpt-5.2", label: "GPT-5.2", provider: "openai" },
-  { id: "gpt-5-mini", label: "GPT-5 mini", provider: "openai" },
-  // Google — newest first; fallback chain descends to lower tiers automatically
-  { id: "gemini-3-pro",      label: "Gemini 3 Pro",      provider: "google" },
+  // Anthropic — Claude 5 family (Haiku 4.5 is the budget tier; no Haiku 5 yet). Hidden from the
+  // picker (`listed: false`) until the account is funded: the key is valid but its balance is too
+  // low, so every send would 400. Kept in the registry so routing, the fallback chain and any saved
+  // conversation pinned to one still resolve — re-listing is deleting one flag.
+  { id: "claude-opus-5", label: "Claude Opus 5", provider: "anthropic", listed: false },
+  { id: "claude-sonnet-5", label: "Claude Sonnet 5", provider: "anthropic", listed: false },
+  { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", provider: "anthropic", listed: false },
+  // OpenAI — GPT-5.x. Hidden until a working key is set (the current OPENAI_API_KEY is rejected
+  // 401). The same env key is also read for server-side image generation, so it stays wired up;
+  // this only takes the chat models out of the selector.
+  { id: "gpt-5.5", label: "GPT-5.5", provider: "openai", listed: false },
+  { id: "gpt-5.2", label: "GPT-5.2", provider: "openai", listed: false },
+  { id: "gpt-5-mini", label: "GPT-5 mini", provider: "openai", listed: false },
+  // Google — only ids confirmed working against the live key are listed (probed 2026-08-31 via
+  // /api/copilot). gemini-3-pro / gemini-2.5-pro / gemini-2.0-flash each returned 404 "not found /
+  // no longer available", so they are omitted rather than shown and left to error on send.
   { id: "gemini-3.5-flash",  label: "Gemini 3.5 Flash",  provider: "google" },
-  { id: "gemini-2.5-pro",    label: "Gemini 2.5 Pro",    provider: "google" },
   { id: "gemini-2.5-flash",  label: "Gemini 2.5 Flash",  provider: "google" },
-  { id: "gemini-2.0-flash",  label: "Gemini 2 Flash",    provider: "google" },
   // AgentRouter — a third-party OpenAI-compatible gateway that fronts several vendors behind one
   // key. Labels carry the "· AgentRouter" suffix because the model name alone is ambiguous: the
   // same "Claude Opus 5" is selectable directly from Anthropic, and the selector trigger, the
@@ -59,12 +70,9 @@ export function upstreamModelId(modelId: string): string {
  * The chain ends at "offline" so there is always a last resort.
  */
 export const FALLBACK_CHAIN: Record<string, string> = {
-  // Google — step down through tiers until something responds
-  "gemini-3-pro":     "gemini-3.5-flash",
-  "gemini-3.5-flash": "gemini-2.5-pro",
-  "gemini-2.5-pro":   "gemini-2.5-flash",
-  "gemini-2.5-flash": "gemini-2.0-flash",
-  "gemini-2.0-flash": "offline",
+  // Google — step down through the working tiers until something responds
+  "gemini-3.5-flash": "gemini-2.5-flash",
+  "gemini-2.5-flash": "offline",
   // Anthropic
   "claude-opus-5":             "claude-sonnet-5",
   "claude-sonnet-5":           "claude-haiku-4-5-20251001",

@@ -126,16 +126,12 @@ export default function App() {
     setConversations(loadConversations());
     probeModels().then(() => {
       // Pick the first available model in preference order. Gemini 2.5 Flash is the default
-      // (most quota for the FYP demo); the rest are fallbacks if Google isn't keyed.
+      // (most quota for the FYP demo); the gateway is the fallback for local dev, where only the
+      // AgentRouter key is present. Every id here is one the picker actually lists.
       const preferred = [
         "gemini-2.5-flash",
         "gemini-3.5-flash",
-        "gemini-3-pro",
-        "gemini-2.5-pro",
-        "gemini-2.0-flash",
-        "claude-opus-5",
-        "claude-sonnet-5",
-        "gpt-5.5",
+        "agentrouter/claude-opus-5",
       ];
       const pick = preferred.map(getModel).find((m) => m.available);
       if (pick) setModelId(pick.id);

@@ -20,6 +20,8 @@ export class ProxyAgent implements AgentModel {
   readonly id: string;
   readonly label: string;
   readonly provider: Provider;
+  /** False hides the model from the picker without affecting routing (see ModelInfo.listed). */
+  readonly listed: boolean;
   available = false; // set by the registry from /api/health + BYOK presence
   private endpoint: string;
 
@@ -27,6 +29,7 @@ export class ProxyAgent implements AgentModel {
     this.id = info.id;
     this.label = info.label;
     this.provider = info.provider;
+    this.listed = info.listed !== false;
     this.endpoint = endpoint;
   }
 

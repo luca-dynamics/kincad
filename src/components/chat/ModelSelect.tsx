@@ -7,7 +7,9 @@ import { PROVIDER_LABEL, type Provider } from "../../../shared/models";
 
 // Derived from PROVIDER_LABEL rather than hand-listed, so a provider added to shared/models.ts
 // cannot end up with models in the registry but no section in this menu. Declaration order in
-// PROVIDER_LABEL is therefore also the display order here.
+// PROVIDER_LABEL is therefore also the display order here. A provider is shown only when it has at
+// least one *listed* model (see ModelMenu): one whose models are all `listed: false` — a provider
+// we have not usably keyed — is skipped rather than drawn as an empty, key-prompting section.
 const PROVIDERS = Object.keys(PROVIDER_LABEL) as Provider[];
 
 export function ModelSelect({
@@ -152,7 +154,11 @@ function ModelMenu({ modelId, editing, draft, setEditing, setDraft, onSave, onCl
   return (
     <>
       {PROVIDERS.map((p) => {
-        const models = PROXY_AGENTS.filter((m) => m.provider === p);
+        const models = PROXY_AGENTS.filter((m) => m.provider === p && m.listed);
+        // A provider whose every model is unlisted (one we have not usably keyed for the demo) is
+        // dropped from the menu entirely, rather than rendering a header + "connect" prompt over an
+        // empty list.
+        if (models.length === 0) return null;
         const byok = hasKey(p);
         const server = serverHasProvider(p);
         return (
