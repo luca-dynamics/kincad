@@ -110,6 +110,34 @@ function link(
   ctx.stroke();
 }
 
+/**
+ * A link's name tag (r₁ … r₄, matching the Params dock and the report) centred on the midpoint of
+ * its two SCREEN endpoints. A thick halo in the background colour keeps it legible where it sits on
+ * top of the coloured 6px link. Drawn only when the Labels toggle is on: it identifies which
+ * segment is which, so someone who does not know the r-notation can still tell r₂ from r₄ before
+ * grabbing a handle. Endpoints are already in screen space, so this reads no View.
+ */
+function linkLabel(
+  ctx: CanvasRenderingContext2D,
+  a: Vec2,
+  b: Vec2,
+  text: string,
+  color: string,
+  pal: Palette,
+) {
+  const x = (a.x + b.x) / 2;
+  const y = (a.y + b.y) / 2;
+  ctx.font = "600 12px ui-sans-serif, system-ui, -apple-system, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = pal.bg;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
 export function drawCouplerCurve(
   ctx: CanvasRenderingContext2D,
   curve: Vec2[],
@@ -143,7 +171,7 @@ export function drawFourBar(
   st: FourBarState,
   view: View,
   pal: Palette,
-  opts: { showHandles: boolean } = { showHandles: true },
+  opts: { showHandles: boolean; showLabels?: boolean } = { showHandles: true },
 ): Handle[] {
   const O2 = worldToScreen(st.O2, view);
   const O4 = worldToScreen(st.O4, view);
@@ -184,6 +212,17 @@ export function drawFourBar(
   fixedPivot(ctx, O2, pal);
   fixedPivot(ctx, O4, pal);
 
+  if (opts.showLabels) {
+    // r₁ is the fixed frame O₂→O₄, so it is drawn whether or not the assembly closes; the moving
+    // links only have a pose to sit on when it does (an open dyad has no A/B between them).
+    linkLabel(ctx, O2, O4, "r₁", pal.ground, pal);
+    if (st.valid) {
+      linkLabel(ctx, O2, A, "r₂", pal.link2, pal);
+      linkLabel(ctx, A, B, "r₃", pal.link3, pal);
+      linkLabel(ctx, O4, B, "r₄", pal.link4, pal);
+    }
+  }
+
   const handles: Handle[] = [
     { id: "O4", screen: O4 },
     ...(st.valid
@@ -204,7 +243,7 @@ export function drawSliderCrank(
   st: SliderCrankState,
   view: View,
   pal: Palette,
-  opts: { showHandles: boolean } = { showHandles: true },
+  opts: { showHandles: boolean; showLabels?: boolean } = { showHandles: true },
 ): Handle[] {
   const O2 = worldToScreen(st.O2, view);
   const A = worldToScreen(st.A, view);
@@ -235,6 +274,11 @@ export function drawSliderCrank(
     movingJoint(ctx, B, pal);
   }
   fixedPivot(ctx, O2, pal);
+
+  if (opts.showLabels && st.valid) {
+    linkLabel(ctx, O2, A, "r₂", pal.link2, pal);
+    linkLabel(ctx, A, B, "r₃", pal.link3, pal);
+  }
 
   const handles: Handle[] = st.valid ? [{ id: "A", screen: A }] : [];
   if (opts.showHandles) drawHandles(ctx, handles, pal);

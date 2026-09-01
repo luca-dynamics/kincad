@@ -18,6 +18,13 @@ export interface WorkspaceState {
   showCouplerCurve: boolean;
   showGrid: boolean;
   /**
+   * Draw each link's name at its midpoint in the 2D view (r₁ … r₄ for the four-bar, r₂ / r₃ for the
+   * slider-crank), matching the r-notation the Params dock and the report already use. Off by
+   * default: it is an on-demand identification aid — turned on so someone who does not know which
+   * segment is r₂ can read it off the mechanism — not part of the resting view.
+   */
+  showLabels: boolean;
+  /**
    * The length unit these link dimensions are declared in. A label, not a scale factor: the solver
    * is scale-free and never reads it, so changing it moves nothing — see [units.ts](units.ts).
    */
@@ -61,6 +68,7 @@ export const INITIAL_STATE: WorkspaceState = {
   speed: 1,
   showCouplerCurve: true,
   showGrid: true,
+  showLabels: false,
   unit: DEFAULT_UNIT,
   cadModel: null,
 };

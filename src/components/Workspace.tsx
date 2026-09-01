@@ -209,11 +209,13 @@ export default function Workspace({
           const st = analyzeFourBar(s.fourbar, s.theta2);
           handlesRef.current = drawFourBar(ctx, st, viewRef.current, pal, {
             showHandles: true,
+            showLabels: s.showLabels,
           });
         } else {
           const st = analyzeSliderCrank(s.slider, s.theta2);
           handlesRef.current = drawSliderCrank(ctx, st, viewRef.current, pal, {
             showHandles: true,
+            showLabels: s.showLabels,
           });
         }
       }
