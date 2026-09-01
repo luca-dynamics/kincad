@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowUp, Paperclip, X, Mic, FileText } from "lucide-react";
 import mammoth from "mammoth";
 import { ModelSelect } from "./ModelSelect";
@@ -39,8 +39,19 @@ export function Composer({
   const [text, setText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
   const speech = useSpeechRecognition(setText);
   const toggleMic = () => (speech.listening ? speech.stop() : speech.start(text));
+
+  // Grow the box to fit its content — typed, pasted, or dictated — up to a cap, then scroll.
+  // Without this the textarea stays one row and long/pasted text is clipped to a single line.
+  useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto"; // reset first so the box can shrink as well as grow
+    const max = size === "large" ? 240 : 160;
+    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+  }, [text, size]);
 
   const send = () => {
     const t = text.trim();
@@ -137,6 +148,7 @@ export function Composer({
       )}
 
       <textarea
+        ref={taRef}
         autoFocus={autoFocus}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -150,13 +162,13 @@ export function Composer({
         placeholder={placeholder}
         // 16px under a thumb: below that, mobile Safari zooms the whole viewport the moment the
         // composer is tapped, and the workspace behind it is thrown off screen.
-        className={`w-full resize-none bg-transparent px-4 text-fg outline-none placeholder:text-faint ${
+        className={`w-full resize-none overflow-y-auto bg-transparent px-4 text-fg outline-none placeholder:text-faint ${
           large ? "pt-4 text-title sm:text-head" : "pt-3 text-title sm:text-body"
         }`}
       />
 
       <div className="flex items-center justify-between px-2.5 pb-2.5 pt-1">
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 items-center gap-1">
           <input ref={fileRef} type="file" accept={ACCEPT} multiple hidden onChange={(e) => onFiles(e.target.files)} />
           <IconButton title="Attach image, PDF, DOCX, or text file" onClick={() => fileRef.current?.click()}>
             <Paperclip className="h-4 w-4" />
@@ -181,7 +193,7 @@ export function Composer({
         <button
           onClick={send}
           disabled={busy || (!text.trim() && attachments.length === 0)}
-          className="grid h-9 w-9 place-items-center rounded-lg bg-accent text-accent-fg transition-all duration-100 hover:opacity-90 active:scale-95 disabled:opacity-30 sm:h-8 sm:w-8"
+          className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-accent text-accent-fg transition-all duration-100 hover:opacity-90 active:scale-95 disabled:opacity-30 sm:h-8 sm:w-8"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

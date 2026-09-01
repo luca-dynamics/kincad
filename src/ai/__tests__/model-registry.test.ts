@@ -77,10 +77,12 @@ describe("gateway ids are namespaced and stripped at egress", () => {
     expect(upstreamModelId(viaGateway)).toBe("claude-opus-5");
   });
 
-  it("every gateway model carries the provider in its label", () => {
-    // The selector trigger, the quota-fallback notice and the activity trace all render the label
-    // with no provider context, so "Claude Opus 5" alone would not say whose key is being spent.
-    for (const m of gateway) expect(m.label).toContain("AgentRouter");
+  it("gateway labels are the bare model name, not suffixed with the provider", () => {
+    // The picker groups these rows under an "AgentRouter" header and the same-named first-party
+    // entries are unlisted, so the label needs no "· AgentRouter" suffix — the namespaced id, not
+    // the label, is what pins routing and billing to the gateway. (A redundant suffix also crowded
+    // the composer's send button on narrow screens.)
+    for (const m of gateway) expect(m.label).not.toContain("AgentRouter");
   });
 });
 
