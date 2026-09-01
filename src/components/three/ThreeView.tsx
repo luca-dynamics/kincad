@@ -14,12 +14,14 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { GizmoHelper, GizmoViewcube, Grid, OrbitControls } from "@react-three/drei";
 import { Maximize2 } from "lucide-react";
 import * as THREE from "three";
-import { analyzeFourBar, analyzeSliderCrank, couplerCurve, type Vec2 } from "../../engine";
+import { analyzeFourBar, analyzeSliderCrank, couplerCurve, dist, type Vec2 } from "../../engine";
 import { geometryKey, mechanismExtent, type Extent } from "../../render/extent";
 import { FOV, frameCamera } from "../../render/frame3d";
 import type { WorkspaceState } from "../../state";
 import { useTheme } from "../../theme";
+import { lenLabel, type LengthUnit } from "../../units";
 import { Button } from "../ui";
+import Label, { type LabelSpec } from "./Label";
 
 interface Bar {
   a: Vec2;
@@ -34,9 +36,29 @@ interface Joint {
   fixed?: boolean;
 }
 
-function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Joint[]; curve: Vec2[] } {
+/**
+ * `r₃ 3.5 mm` at the midpoint of one link, MEASURED FROM THE POSE exactly as the 2D overlay does
+ * (see `dimText` in [draw.ts](../../render/draw.ts)) — one rule for the number in both views, so
+ * they cannot disagree about a dimension. z sits on the bars' own centre plane: the sprite draws
+ * over the solids regardless of depth, and an offset would only shift where the tag appears to be
+ * anchored as the camera orbits around it.
+ */
+function dimLabel(name: string, a: Vec2, b: Vec2, color: string, unit: LengthUnit): LabelSpec {
+  return {
+    key: name,
+    text: `${name} ${lenLabel(dist(a, b), unit)}`,
+    color,
+    at: [(a.x + b.x) / 2, (a.y + b.y) / 2, 0],
+  };
+}
+
+function buildScene(
+  state: WorkspaceState,
+  c: Colors,
+): { bars: Bar[]; joints: Joint[]; curve: Vec2[]; labels: LabelSpec[] } {
   const bars: Bar[] = [];
   const joints: Joint[] = [];
+  const labels: LabelSpec[] = [];
   let curve: Vec2[] = [];
 
   if (state.kind === "fourbar") {
@@ -54,6 +76,17 @@ function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Jo
     }
     joints.push({ p: st.O2, color: c.ground, r: 0.16, fixed: true });
     joints.push({ p: st.O4, color: c.ground, r: 0.16, fixed: true });
+    if (state.showLabels) {
+      // r₁ spans the two fixed pivots. No bar is drawn for it in 3D — the frame is implied by the
+      // pivots at each end — but it is one of the four dimensions that define the linkage and the
+      // 2D view labels it, so it is labelled here too rather than being the one r-number missing.
+      labels.push(dimLabel("r₁", st.O2, st.O4, c.ground, state.unit));
+      if (st.valid) {
+        labels.push(dimLabel("r₂", st.O2, st.A, c.link2, state.unit));
+        labels.push(dimLabel("r₃", st.A, st.B, c.link3, state.unit));
+        labels.push(dimLabel("r₄", st.O4, st.B, c.link4, state.unit));
+      }
+    }
   } else {
     const st = analyzeSliderCrank(state.slider, state.theta2);
     if (st.valid) {
@@ -63,8 +96,12 @@ function buildScene(state: WorkspaceState, c: Colors): { bars: Bar[]; joints: Jo
       joints.push({ p: st.B, color: c.link4, r: 0.2 }); // slider pin (block drawn separately)
     }
     joints.push({ p: st.O2, color: c.ground, r: 0.16, fixed: true });
+    if (state.showLabels && st.valid) {
+      labels.push(dimLabel("r₂", st.O2, st.A, c.link2, state.unit));
+      labels.push(dimLabel("r₃", st.A, st.B, c.link3, state.unit));
+    }
   }
-  return { bars, joints, curve };
+  return { bars, joints, curve, labels };
 }
 
 interface Colors {
@@ -75,6 +112,8 @@ interface Colors {
   ground: string;
   couplerPt: string;
   curve: string;
+  /** Outline colour behind a label's glyphs: the canvas background, as in the 2D overlay. */
+  halo: string;
 }
 
 function BarMesh({ bar }: { bar: Bar }) {
@@ -194,11 +233,12 @@ export default function ThreeView({
       ground: v("--c-ground"),
       couplerPt: v("--c-coupler-pt"),
       curve: v("--c-curve"),
+      halo: v("--canvas-bg"),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
-  const { bars, joints, curve } = buildScene(state, colors);
+  const { bars, joints, curve, labels } = buildScene(state, colors);
   const dark = theme === "dark";
 
   // The box to frame: the mechanism over its whole cycle, not the pose on screen. Keyed off the
@@ -236,6 +276,9 @@ export default function ThreeView({
             <JointMesh key={i} joint={j} />
           ))}
           {curve.length > 1 && <CouplerLine curve={curve} color={colors.curve} />}
+          {labels.map((l) => (
+            <Label key={l.key} text={l.text} color={l.color} halo={colors.halo} at={l.at} />
+          ))}
         </group>
 
         <Grid

@@ -80,7 +80,7 @@ export default function Viewport(p: Props) {
           (p.state.cadModel ? (
             <ErrorBoundary label="Couldn't load the CAD view.">
               <Suspense fallback={<Fallback label="building CAD model…" />}>
-                <CadView model={p.state.cadModel} />
+                <CadView model={p.state.cadModel} showLabels={p.state.showLabels} unit={p.state.unit} />
               </Suspense>
             </ErrorBoundary>
           ) : (

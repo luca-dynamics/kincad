@@ -210,12 +210,14 @@ export default function Workspace({
           handlesRef.current = drawFourBar(ctx, st, viewRef.current, pal, {
             showHandles: true,
             showLabels: s.showLabels,
+            unit: s.unit,
           });
         } else {
           const st = analyzeSliderCrank(s.slider, s.theta2);
           handlesRef.current = drawSliderCrank(ctx, st, viewRef.current, pal, {
             showHandles: true,
             showLabels: s.showLabels,
+            unit: s.unit,
           });
         }
       }

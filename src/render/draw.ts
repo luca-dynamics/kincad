@@ -1,7 +1,8 @@
 // Canvas drawing for planar mechanisms. Pure drawing functions — they read engine output,
 // a View, and a theme Palette, and paint. They never compute kinematics.
 
-import type { FourBarState, SliderCrankState, Vec2 } from "../engine";
+import { dist, type FourBarState, type SliderCrankState, type Vec2 } from "../engine";
+import { lenLabel, type LengthUnit } from "../units";
 import type { Palette } from "./palette";
 import { worldToScreen, type View } from "./view";
 
@@ -111,11 +112,12 @@ function link(
 }
 
 /**
- * A link's name tag (r₁ … r₄, matching the Params dock and the report) centred on the midpoint of
- * its two SCREEN endpoints. A thick halo in the background colour keeps it legible where it sits on
- * top of the coloured 6px link. Drawn only when the Labels toggle is on: it identifies which
+ * A link's dimension tag — its name and its measured length, `r₃ 3.5 mm` — centred on the midpoint
+ * of its two SCREEN endpoints. A thick halo in the background colour keeps it legible where it sits
+ * on top of the coloured 6px link. Drawn only when the Labels toggle is on: it identifies which
  * segment is which, so someone who does not know the r-notation can still tell r₂ from r₄ before
- * grabbing a handle. Endpoints are already in screen space, so this reads no View.
+ * grabbing a handle, and reads off how long it is without crossing to the Params dock.
+ * Endpoints are already in screen space, so this reads no View.
  */
 function linkLabel(
   ctx: CanvasRenderingContext2D,
@@ -136,6 +138,22 @@ function linkLabel(
   ctx.strokeText(text, x, y);
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);
+}
+
+/**
+ * `r₃ 3.5 mm` for one link, MEASURED FROM THE POSE rather than read from the linkage.
+ *
+ * These drawing functions are handed the solved state and nothing else, and they do not need more
+ * than that: loop closure puts every joint exactly its link length from its neighbour, so the
+ * distance between two world joints IS the declared dimension, recovered without threading the
+ * linkage object through the whole render path. `unit` is a declaration, not a scale — see
+ * [units.ts](../units.ts) — so the number is the stored one and only the suffix changes.
+ *
+ * Falls back to the bare name when no unit was passed, which is what a caller that only wants the
+ * r-notation gets.
+ */
+function dimText(name: string, a: Vec2, b: Vec2, unit?: LengthUnit): string {
+  return unit ? `${name} ${lenLabel(dist(a, b), unit)}` : name;
 }
 
 export function drawCouplerCurve(
@@ -171,7 +189,7 @@ export function drawFourBar(
   st: FourBarState,
   view: View,
   pal: Palette,
-  opts: { showHandles: boolean; showLabels?: boolean } = { showHandles: true },
+  opts: { showHandles: boolean; showLabels?: boolean; unit?: LengthUnit } = { showHandles: true },
 ): Handle[] {
   const O2 = worldToScreen(st.O2, view);
   const O4 = worldToScreen(st.O4, view);
@@ -215,11 +233,11 @@ export function drawFourBar(
   if (opts.showLabels) {
     // r₁ is the fixed frame O₂→O₄, so it is drawn whether or not the assembly closes; the moving
     // links only have a pose to sit on when it does (an open dyad has no A/B between them).
-    linkLabel(ctx, O2, O4, "r₁", pal.ground, pal);
+    linkLabel(ctx, O2, O4, dimText("r₁", st.O2, st.O4, opts.unit), pal.ground, pal);
     if (st.valid) {
-      linkLabel(ctx, O2, A, "r₂", pal.link2, pal);
-      linkLabel(ctx, A, B, "r₃", pal.link3, pal);
-      linkLabel(ctx, O4, B, "r₄", pal.link4, pal);
+      linkLabel(ctx, O2, A, dimText("r₂", st.O2, st.A, opts.unit), pal.link2, pal);
+      linkLabel(ctx, A, B, dimText("r₃", st.A, st.B, opts.unit), pal.link3, pal);
+      linkLabel(ctx, O4, B, dimText("r₄", st.O4, st.B, opts.unit), pal.link4, pal);
     }
   }
 
@@ -243,7 +261,7 @@ export function drawSliderCrank(
   st: SliderCrankState,
   view: View,
   pal: Palette,
-  opts: { showHandles: boolean; showLabels?: boolean } = { showHandles: true },
+  opts: { showHandles: boolean; showLabels?: boolean; unit?: LengthUnit } = { showHandles: true },
 ): Handle[] {
   const O2 = worldToScreen(st.O2, view);
   const A = worldToScreen(st.A, view);
@@ -276,8 +294,8 @@ export function drawSliderCrank(
   fixedPivot(ctx, O2, pal);
 
   if (opts.showLabels && st.valid) {
-    linkLabel(ctx, O2, A, "r₂", pal.link2, pal);
-    linkLabel(ctx, A, B, "r₃", pal.link3, pal);
+    linkLabel(ctx, O2, A, dimText("r₂", st.O2, st.A, opts.unit), pal.link2, pal);
+    linkLabel(ctx, A, B, dimText("r₃", st.A, st.B, opts.unit), pal.link3, pal);
   }
 
   const handles: Handle[] = st.valid ? [{ id: "A", screen: A }] : [];

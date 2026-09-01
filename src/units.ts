@@ -49,6 +49,54 @@ export function len(v: number, unit: LengthUnit, decimals = 4): string {
   return `${v.toFixed(decimals)} ${unit}`;
 }
 
+/**
+ * Millimetres in one of each unit, and the ONLY conversion in the app.
+ *
+ * It exists for the CAD side alone. A generated part is authored in real millimetres — the
+ * generator's contract says so in as many words (`server/tools.ts`: "Units are millimetres") and
+ * every `CadParam` it emits carries `unit: "mm"` — so a plate 600 mm across genuinely is 60 cm
+ * across, and printing its extents in a declared unit means converting them.
+ *
+ * The MECHANISM deliberately does not come through here. Its lengths are declarations about
+ * numbers the scale-free solver never interprets (see the header), so 4 stays 4 in every unit;
+ * running them through a factor would rewrite stored geometry behind a label change. That
+ * asymmetry is the point: `fromMm` converts a real length, `len` labels a declared one.
+ */
+const MM_PER: Record<LengthUnit, number> = { mm: 1, cm: 10, m: 1000, in: 25.4 };
+
+/** A real millimetre length, expressed in `unit`. CAD geometry only — see `MM_PER`. */
+export function fromMm(mm: number, unit: LengthUnit): number {
+  return mm / MM_PER[unit];
+}
+
+/**
+ * Decimals that hold a length to roughly three significant figures.
+ *
+ * A fixed count cannot serve every unit at once: the same 6 mm hole is `0.6 cm`, `0.006 m` and
+ * `0.236 in`, so two decimals round the metre reading to `0.01` and four decimals turn a 600 mm
+ * plate into `600.0000`. Scaling the precision to the magnitude keeps every one of them readable.
+ */
+function labelDecimals(v: number): number {
+  const a = Math.abs(v);
+  if (a >= 100) return 0;
+  if (a >= 10) return 1;
+  if (a >= 1) return 2;
+  if (a >= 0.1) return 3;
+  return 4;
+}
+
+/**
+ * A length for a label drawn ON the geometry: `4 mm`, `1.2 mm`, `0.006 m`.
+ *
+ * Distinct from `len` because the reader and the space are different. `len` fills a report table
+ * column, where a fixed four decimals line the numbers up; this sits at the midpoint of a link in a
+ * viewport, where `1.2000 mm` is four characters of noise competing with the mechanism behind it.
+ * Trailing zeros are dropped for the same reason — `4 mm` is the whole of what r₁ measures.
+ */
+export function lenLabel(v: number, unit: LengthUnit): string {
+  return `${Number(v.toFixed(labelDecimals(v)))} ${unit}`;
+}
+
 /** Linear velocity: `mm/s`. */
 export function perSec(unit: LengthUnit): string {
   return `${unit}/s`;
