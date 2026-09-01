@@ -51,12 +51,13 @@ export const MODELS: ModelInfo[] = [
   { id: "gemini-3.5-flash",  label: "Gemini 3.5 Flash",  provider: "google" },
   { id: "gemini-2.5-flash",  label: "Gemini 2.5 Flash",  provider: "google" },
   // AgentRouter — a third-party OpenAI-compatible gateway that fronts several vendors behind one
-  // key. Labels carry the "· AgentRouter" suffix because the model name alone is ambiguous: the
-  // same "Claude Opus 5" is selectable directly from Anthropic, and the selector trigger, the
-  // quota-fallback notice and the activity trace all render this label with no provider context.
-  { id: `${GATEWAY_PREFIX}claude-opus-5`,   label: "Claude Opus 5 · AgentRouter",   provider: "agentrouter" },
-  { id: `${GATEWAY_PREFIX}claude-opus-4-8`, label: "Claude Opus 4.8 · AgentRouter", provider: "agentrouter" },
-  { id: `${GATEWAY_PREFIX}gpt-5.6-sol`,     label: "GPT-5.6 Sol · AgentRouter",     provider: "agentrouter" },
+  // key. Labels are the bare model name (no "· AgentRouter" suffix): the picker already groups these
+  // rows under an "AgentRouter" header, and the same-named first-party entries above are unlisted, so
+  // nothing selectable collides. The namespaced id (GATEWAY_PREFIX), not the label, is what keeps
+  // routing and billing pinned to the gateway.
+  { id: `${GATEWAY_PREFIX}claude-opus-5`,   label: "Claude Opus 5",   provider: "agentrouter" },
+  { id: `${GATEWAY_PREFIX}claude-opus-4-8`, label: "Claude Opus 4.8", provider: "agentrouter" },
+  { id: `${GATEWAY_PREFIX}gpt-5.6-sol`,     label: "GPT-5.6 Sol",     provider: "agentrouter" },
 ];
 
 /** The id to send upstream: registry ids are namespaced, provider APIs expect the bare id. */

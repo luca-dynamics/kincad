@@ -84,7 +84,7 @@ export function ModelSelect({
   );
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative min-w-0" ref={ref}>
       <button
         ref={btnRef}
         onClick={openMenu}
