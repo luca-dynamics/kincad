@@ -1,10 +1,19 @@
 import { Composer } from "./chat/Composer";
 import { LogoMark } from "./Logo";
 
+// The example pills below the composer: click-to-send showcase prompts for the demo. The mix is
+// deliberate. The first three are numeric mechanism setups that the OFFLINE intent parser also
+// understands (see ai/intent.ts), so they work with or without a connected model; they are the
+// safe demo openers. The next two generate a freeform 3D CAD part (a solid plus CSG cutouts),
+// which needs a connected model. The last two are concept questions. House style: no em/en-dashes
+// in prose (hyphens in compounds, the en-dash only inside a numeric range).
 const PROMPTS = [
   "Analyze a crank-rocker with ground 4, crank 1.2, coupler 3.5, rocker 3",
+  "Set up a drag-link with ground 1.2, crank 3, coupler 3, rocker 3.2",
+  "Switch to a slider-crank with crank 1.5, connecting rod 5, offset 0",
+  "Generate a 3D CAD plate: 40 mm square, 10 mm thick, with a 6 mm hole",
+  "Model a 3D mounting bracket 60 mm wide with two 6 mm bolt holes",
   "What is the Grashof condition?",
-  "Switch to a slider-crank and set the rod to 5",
   "Explain transmission angle and why it matters",
 ];
 

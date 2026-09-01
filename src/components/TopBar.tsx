@@ -44,6 +44,7 @@ import {
   Pause,
   RotateCcw,
   Grid3x3,
+  Tag,
   Spline,
   Download,
   ImageDown,
@@ -220,6 +221,19 @@ export default function TopBar({
       icon: <Grid3x3 className="h-4 w-4" />,
       active: state.showGrid,
       onClick: () => onPatch({ showGrid: !state.showGrid }),
+    });
+  }
+  // Draws r₁ … r₄ on the links themselves, so the r-notation in the Params dock and the report can
+  // be read straight off the mechanism. 2D only — the label placement is canvas midpoints, and the
+  // 3D/CAD views have no equivalent surface.
+  if (viewMode === "2d") {
+    secondary.push({
+      key: "labels",
+      label: "Link labels",
+      title: "Toggle link labels (r₁, r₂, …)",
+      icon: <Tag className="h-4 w-4" />,
+      active: state.showLabels,
+      onClick: () => onPatch({ showLabels: !state.showLabels }),
     });
   }
   // Every view, not just 2D. The capture is view-agnostic now — `activeViewCanvas()` finds whichever
