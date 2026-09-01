@@ -223,14 +223,19 @@ export default function TopBar({
       onClick: () => onPatch({ showGrid: !state.showGrid }),
     });
   }
-  // Draws r₁ … r₄ on the links themselves, so the r-notation in the Params dock and the report can
-  // be read straight off the mechanism. 2D only — the label placement is canvas midpoints, and the
-  // 3D/CAD views have no equivalent surface.
-  if (viewMode === "2d") {
+  // Dimensions ON the geometry, in every view — the r-notation from the Params dock and the report
+  // drawn on the links themselves in 2D and 3D, and the part's extents on its bounding box in CAD.
+  // One flag drives all three (`state.showLabels`), so the toggle keeps its position as the user
+  // switches views; only the wording changes, because "r₁ … r₄" means nothing over a solid part and
+  // "X / Y / Z" means nothing over a linkage. Withheld in CAD before a model exists, where there is
+  // no geometry to measure.
+  if (!isCad || hasCad) {
     secondary.push({
       key: "labels",
-      label: "Link labels",
-      title: "Toggle link labels (r₁, r₂, …)",
+      label: isCad ? "Dimensions" : "Link labels",
+      title: isCad
+        ? "Toggle the bounding-box dimensions"
+        : "Toggle link labels and lengths (r₁, r₂, …)",
       icon: <Tag className="h-4 w-4" />,
       active: state.showLabels,
       onClick: () => onPatch({ showLabels: !state.showLabels }),

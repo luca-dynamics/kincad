@@ -18,15 +18,21 @@ export interface WorkspaceState {
   showCouplerCurve: boolean;
   showGrid: boolean;
   /**
-   * Draw each link's name at its midpoint in the 2D view (r₁ … r₄ for the four-bar, r₂ / r₃ for the
-   * slider-crank), matching the r-notation the Params dock and the report already use. Off by
-   * default: it is an on-demand identification aid — turned on so someone who does not know which
-   * segment is r₂ can read it off the mechanism — not part of the resting view.
+   * Dimension the geometry in place, in whichever view is on screen: each link's name and measured
+   * length at its midpoint in 2D and 3D (r₁ … r₄ for the four-bar, r₂ / r₃ for the slider-crank,
+   * matching the r-notation the Params dock and the report already use), and the part's X/Y/Z
+   * extents on a bounding box in the CAD view. Lengths are shown in `unit` below.
+   *
+   * ONE FLAG FOR ALL THREE VIEWS, deliberately: it answers one question ("how big is this bit?"), so
+   * a user who turns it on in 2D and switches to 3D means it there too. Off by default — it is an
+   * on-demand measuring aid, not part of the resting view.
    */
   showLabels: boolean;
   /**
    * The length unit these link dimensions are declared in. A label, not a scale factor: the solver
    * is scale-free and never reads it, so changing it moves nothing — see [units.ts](units.ts).
+   * (The CAD view is the one exception, and the only place a conversion happens: a generated part is
+   * authored in real millimetres, so its dimensions are converted into this unit before display.)
    */
   unit: LengthUnit;
   /** Last freeform CAD model the agent generated (rendered in the CAD view), if any. */
